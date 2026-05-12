@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
+import logging
 from collections import defaultdict
 from datetime import datetime
-import logging
 from typing import TYPE_CHECKING
 
 from PySide6.QtCore import QObject, Signal
@@ -27,7 +27,7 @@ class AppState(QObject):
     status_changed = Signal(str)
     save_state_changed = Signal(bool)
 
-    def __init__(self, store: "JsonDataStore") -> None:
+    def __init__(self, store: JsonDataStore) -> None:
         super().__init__()
         self._store = store
         self._document = TaskDocument.empty()
@@ -150,7 +150,8 @@ class AppState(QObject):
                 continue
             key = "inbox" if task.inbox or task.quadrant is None else task.quadrant.value
             sections[key].append(task)
-        return {section: sections.get(section, []) for section in ("inbox", *[item.value for item in Quadrant])}
+        section_order = ["inbox", *[item.value for item in Quadrant]]
+        return {section: sections.get(section, []) for section in section_order}
 
     def sorted_tasks(self) -> list[Task]:
         def sort_key(task: Task) -> tuple[int, int, datetime, datetime]:
@@ -163,7 +164,9 @@ class AppState(QObject):
         task = self.get_task(task_id)
         if task is None:
             return []
-        return [f"{entry.timestamp.isoformat()} · {entry.action}" for entry in reversed(task.history)]
+        return [
+            f"{entry.timestamp.isoformat()} · {entry.action}" for entry in reversed(task.history)
+        ]
 
     def _mark_dirty(self, message: str) -> None:
         self._dirty = True

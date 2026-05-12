@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Any
 from uuid import uuid4
@@ -14,7 +14,7 @@ from pivot.constants import SCHEMA_VERSION
 def utc_now() -> datetime:
     """Return a timezone-aware UTC timestamp."""
 
-    return datetime.now(tz=timezone.utc)
+    return datetime.now(tz=UTC)
 
 
 def datetime_to_storage(value: datetime | None) -> str | None:
@@ -22,7 +22,7 @@ def datetime_to_storage(value: datetime | None) -> str | None:
 
     if value is None:
         return None
-    return value.astimezone(timezone.utc).isoformat()
+    return value.astimezone(UTC).isoformat()
 
 
 def datetime_from_storage(value: str | None) -> datetime | None:
@@ -32,8 +32,8 @@ def datetime_from_storage(value: str | None) -> datetime | None:
         return None
     parsed = datetime.fromisoformat(value)
     if parsed.tzinfo is None:
-        return parsed.replace(tzinfo=timezone.utc)
-    return parsed.astimezone(timezone.utc)
+        return parsed.replace(tzinfo=UTC)
+    return parsed.astimezone(UTC)
 
 
 class Quadrant(StrEnum):
@@ -71,12 +71,16 @@ class HistoryEntry:
         }
 
     @classmethod
-    def from_dict(cls, payload: dict[str, Any]) -> "HistoryEntry":
+    def from_dict(cls, payload: dict[str, Any]) -> HistoryEntry:
         timestamp = datetime_from_storage(payload.get("timestamp")) or utc_now()
         snapshot = payload.get("snapshot", {})
         if not isinstance(snapshot, dict):
             snapshot = {}
-        return cls(timestamp=timestamp, action=str(payload.get("action", "updated")), snapshot=snapshot)
+        return cls(
+            timestamp=timestamp,
+            action=str(payload.get("action", "updated")),
+            snapshot=snapshot,
+        )
 
 
 @dataclass(slots=True)
@@ -104,7 +108,7 @@ class Task:
         quadrant: Quadrant | None = None,
         inbox: bool = True,
         due_at: datetime | None = None,
-    ) -> "Task":
+    ) -> Task:
         now = utc_now()
         task = cls(
             id=str(uuid4()),
@@ -148,7 +152,9 @@ class Task:
         }
 
     def record_history(self, action: str) -> None:
-        self.history.append(HistoryEntry(timestamp=utc_now(), action=action, snapshot=self.snapshot()))
+        self.history.append(
+            HistoryEntry(timestamp=utc_now(), action=action, snapshot=self.snapshot())
+        )
 
     def touch(self, action: str = "updated") -> None:
         self.updated_at = utc_now()
@@ -208,9 +214,11 @@ class Task:
         return payload
 
     @classmethod
-    def from_dict(cls, payload: dict[str, Any]) -> "Task":
+    def from_dict(cls, payload: dict[str, Any]) -> Task:
         history_payload = payload.get("history", [])
-        history = [HistoryEntry.from_dict(item) for item in history_payload if isinstance(item, dict)]
+        history = [
+            HistoryEntry.from_dict(item) for item in history_payload if isinstance(item, dict)
+        ]
         task = cls(
             id=str(payload.get("id") or uuid4()),
             title=str(payload.get("title", "")),
@@ -246,11 +254,11 @@ class TaskDocument:
         }
 
     @classmethod
-    def empty(cls) -> "TaskDocument":
+    def empty(cls) -> TaskDocument:
         return cls(schema_version=SCHEMA_VERSION, tasks=[])
 
     @classmethod
-    def from_dict(cls, payload: dict[str, Any]) -> "TaskDocument":
+    def from_dict(cls, payload: dict[str, Any]) -> TaskDocument:
         tasks_payload = payload.get("tasks", [])
         tasks = [Task.from_dict(item) for item in tasks_payload if isinstance(item, dict)]
         return cls(

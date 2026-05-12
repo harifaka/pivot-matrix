@@ -20,7 +20,7 @@ def main() -> int:
         "--enable-plugin=pyside6",
         "--windows-console-mode=disable",
         f"--output-dir={DIST_DIR}",
-        f"--output-filename=Pivot.exe",
+        "--output-filename=Pivot.exe",
         str(REPO_ROOT / "src" / "pivot" / "__main__.py"),
     ]
     BUILD_DIR.mkdir(exist_ok=True)

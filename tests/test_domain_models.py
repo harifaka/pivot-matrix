@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from pivot.domain.models import Quadrant, Task
 
@@ -17,7 +17,7 @@ def test_task_create_records_initial_history() -> None:
 
 def test_task_updates_keep_history() -> None:
     task = Task.create()
-    due_at = datetime(2026, 5, 12, 12, 0, tzinfo=timezone.utc)
+    due_at = datetime(2026, 5, 12, 12, 0, tzinfo=UTC)
 
     changed = task.apply_updates(
         title="Clarify priorities",

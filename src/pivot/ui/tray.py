@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QAction, QFont, QIcon, QPainter, QPixmap
+from PySide6.QtGui import QAction, QColor, QFont, QIcon, QPainter, QPixmap
 from PySide6.QtWidgets import QMenu, QSystemTrayIcon, QWidget
 
 from pivot.ui.theme import ACCENT, BACKGROUND, TEXT
@@ -15,13 +15,13 @@ def build_app_icon(size: int = 64) -> QIcon:
     painter = QPainter(pixmap)
     painter.setRenderHint(QPainter.RenderHint.Antialiasing)
     painter.setPen(Qt.PenStyle.NoPen)
-    painter.setBrush(BACKGROUND)
+    painter.setBrush(QColor(BACKGROUND))
     painter.drawRoundedRect(0, 0, size, size, 18, 18)
-    painter.setPen(TEXT)
+    painter.setPen(QColor(TEXT))
     font = QFont("Segoe UI", int(size * 0.45), QFont.Weight.Bold)
     painter.setFont(font)
     painter.drawText(pixmap.rect(), Qt.AlignmentFlag.AlignCenter, "P")
-    painter.setPen(ACCENT)
+    painter.setPen(QColor(ACCENT))
     painter.drawRoundedRect(3, 3, size - 6, size - 6, 18, 18)
     painter.end()
     return QIcon(pixmap)

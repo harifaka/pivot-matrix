@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from PySide6.QtCore import QDateTime, QSignalBlocker, Qt, QTimer, Signal
@@ -69,18 +69,19 @@ class TaskListPanel(QFrame):
         self._list.currentItemChanged.connect(self._emit_selection)
 
     def refresh(self, tasks: list[Task], selected_id: str) -> None:
-        with QSignalBlocker(self._list):
-            self._list.clear()
-            self._header.setText(f"{self._title} · {len(tasks)}")
-            current_row = -1
-            for index, task in enumerate(tasks):
-                item = QListWidgetItem(self._item_label(task))
-                item.setData(Qt.ItemDataRole.UserRole, task.id)
-                self._list.addItem(item)
-                if task.id == selected_id:
-                    current_row = index
-            if current_row >= 0:
-                self._list.setCurrentRow(current_row)
+        blocker = QSignalBlocker(self._list)
+        self._list.clear()
+        self._header.setText(f"{self._title} · {len(tasks)}")
+        current_row = -1
+        for index, task in enumerate(tasks):
+            item = QListWidgetItem(self._item_label(task))
+            item.setData(Qt.ItemDataRole.UserRole, task.id)
+            self._list.addItem(item)
+            if task.id == selected_id:
+                current_row = index
+        if current_row >= 0:
+            self._list.setCurrentRow(current_row)
+        del blocker
 
     def focus_list(self) -> None:
         self._list.setFocus(Qt.FocusReason.ShortcutFocusReason)
@@ -90,7 +91,11 @@ class TaskListPanel(QFrame):
         suffix = " ⏳" if task.due_at else ""
         return f"{prefix} {task.display_title}{suffix}"
 
-    def _emit_selection(self, current: QListWidgetItem | None, previous: QListWidgetItem | None) -> None:
+    def _emit_selection(
+        self,
+        current: QListWidgetItem | None,
+        previous: QListWidgetItem | None,
+    ) -> None:
         del previous
         if current is None:
             return
@@ -207,7 +212,7 @@ class TaskEditor(QFrame):
         self._completed_check.setChecked(task.is_completed)
         self._due_check.setChecked(task.due_at is not None)
         self._due_edit.setEnabled(task.due_at is not None)
-        self._due_edit.setDateTime(self._to_qdatetime(task.due_at or datetime.now(tz=timezone.utc)))
+        self._due_edit.setDateTime(self._to_qdatetime(task.due_at or datetime.now(tz=UTC)))
         quadrant_index = 0
         if task.quadrant is not None:
             quadrant_index = self._quadrant_combo.findData(task.quadrant)
@@ -263,7 +268,7 @@ class TaskEditor(QFrame):
         if not self._due_check.isChecked():
             return None
         qdatetime = self._due_edit.dateTime().toUTC()
-        return datetime.fromtimestamp(qdatetime.toSecsSinceEpoch(), tz=timezone.utc)
+        return datetime.fromtimestamp(qdatetime.toSecsSinceEpoch(), tz=UTC)
 
     def _to_qdatetime(self, value: datetime) -> QDateTime:
         return QDateTime.fromSecsSinceEpoch(int(value.timestamp()), Qt.TimeSpec.UTC).toLocalTime()
@@ -288,6 +293,7 @@ class MainWindow(QMainWindow):
             "eliminate": TaskListPanel("eliminate", "Eliminate"),
         }
         self._editor = TaskEditor()
+        self._shortcuts: list[QShortcut] = []
         self._status = QStatusBar()
         self.setStatusBar(self._status)
         self._status.showMessage("Booting")
@@ -367,11 +373,17 @@ class MainWindow(QMainWindow):
         self._state.save_state_changed.connect(self._update_window_title)
 
     def _setup_shortcuts(self) -> None:
-        QShortcut(QKeySequence("Ctrl+1"), self, activated=self._panels["inbox"].focus_list)
-        QShortcut(QKeySequence("Ctrl+2"), self, activated=self._panels["do"].focus_list)
-        QShortcut(QKeySequence("Ctrl+3"), self, activated=self._panels["schedule"].focus_list)
-        QShortcut(QKeySequence("Ctrl+4"), self, activated=self._panels["delegate"].focus_list)
-        QShortcut(QKeySequence("Ctrl+5"), self, activated=self._panels["eliminate"].focus_list)
+        bindings = [
+            ("Ctrl+1", self._panels["inbox"].focus_list),
+            ("Ctrl+2", self._panels["do"].focus_list),
+            ("Ctrl+3", self._panels["schedule"].focus_list),
+            ("Ctrl+4", self._panels["delegate"].focus_list),
+            ("Ctrl+5", self._panels["eliminate"].focus_list),
+        ]
+        for sequence, callback in bindings:
+            shortcut = QShortcut(QKeySequence(sequence), self)
+            shortcut.activated.connect(callback)
+            self._shortcuts.append(shortcut)
 
     def refresh(self) -> None:
         sections = self._state.board_sections()

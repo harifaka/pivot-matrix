@@ -3,4 +3,4 @@
 from pivot.ui.main_window import MainWindow
 from pivot.ui.tray import AppTrayIcon
 
-__all__ = ["MainWindow", "AppTrayIcon"]
+__all__ = ["AppTrayIcon", "MainWindow"]

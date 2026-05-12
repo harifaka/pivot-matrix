@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from pathlib import Path
 import json
 import os
+from dataclasses import dataclass, field
+from pathlib import Path
 
 from pivot.constants import (
     APP_NAME,
@@ -29,7 +29,7 @@ class WindowConfig:
 class UserConfig:
     autosave_interval_ms: int = DEFAULT_AUTOSAVE_INTERVAL_MS
     tray_enabled: bool = True
-    window: WindowConfig = WindowConfig()
+    window: WindowConfig = field(default_factory=WindowConfig)
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -39,16 +39,19 @@ class UserConfig:
         }
 
     @classmethod
-    def from_dict(cls, payload: dict[str, object]) -> "UserConfig":
+    def from_dict(cls, payload: dict[str, object]) -> UserConfig:
         window_payload = payload.get("window", {})
         if not isinstance(window_payload, dict):
             window_payload = {}
         return cls(
-            autosave_interval_ms=int(payload.get("autosave_interval_ms", DEFAULT_AUTOSAVE_INTERVAL_MS)),
+            autosave_interval_ms=_coerce_int(
+                payload.get("autosave_interval_ms"),
+                DEFAULT_AUTOSAVE_INTERVAL_MS,
+            ),
             tray_enabled=bool(payload.get("tray_enabled", True)),
             window=WindowConfig(
-                width=int(window_payload.get("width", WINDOW_DEFAULT_SIZE[0])),
-                height=int(window_payload.get("height", WINDOW_DEFAULT_SIZE[1])),
+                width=_coerce_int(window_payload.get("width"), WINDOW_DEFAULT_SIZE[0]),
+                height=_coerce_int(window_payload.get("height"), WINDOW_DEFAULT_SIZE[1]),
             ),
         )
 
@@ -81,6 +84,23 @@ def _default_root() -> Path:
     if app_data:
         return Path(app_data) / APP_NAME
     return Path.home() / f".{APP_SLUG}"
+
+
+def _coerce_int(value: object, default: int) -> int:
+    if value is None:
+        return default
+    if isinstance(value, bool):
+        return int(value)
+    if isinstance(value, int):
+        return value
+    if isinstance(value, float):
+        return int(value)
+    if isinstance(value, str):
+        try:
+            return int(value)
+        except ValueError:
+            return default
+    return default
 
 
 def resolve_paths() -> AppPaths:
@@ -120,4 +140,9 @@ def save_user_config(paths: AppPaths, config: UserConfig) -> None:
 def load_environment() -> AppEnvironment:
     paths = resolve_paths()
     config = load_user_config(paths)
-    return AppEnvironment(app_name=APP_NAME, organization=APP_ORGANIZATION, paths=paths, user_config=config)
+    return AppEnvironment(
+        app_name=APP_NAME,
+        organization=APP_ORGANIZATION,
+        paths=paths,
+        user_config=config,
+    )

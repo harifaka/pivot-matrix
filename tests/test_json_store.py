@@ -8,7 +8,9 @@ from pivot.persistence.json_store import JsonDataStore
 
 def test_json_store_roundtrip(tmp_path: Path) -> None:
     store = JsonDataStore(tmp_path / "tasks.json")
-    document = TaskDocument(tasks=[Task.create(title="Write README", quadrant=Quadrant.DO, inbox=False)])
+    document = TaskDocument(
+        tasks=[Task.create(title="Write README", quadrant=Quadrant.DO, inbox=False)]
+    )
 
     store.save(document)
     loaded = store.load()
