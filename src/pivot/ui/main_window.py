@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from functools import partial
 from typing import Any
 
 from PySide6.QtCore import Qt, QTimer
@@ -175,7 +176,7 @@ class MainWindow(QMainWindow):
         ]
         for sequence, section in move_bindings:
             shortcut = QShortcut(QKeySequence(sequence), self)
-            shortcut.activated.connect(lambda section_key=section: self._move_selected(section_key))
+            shortcut.activated.connect(partial(self._move_selected, section))
             self._shortcuts.append(shortcut)
 
     def refresh(self) -> None:
