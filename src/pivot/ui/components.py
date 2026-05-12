@@ -31,8 +31,14 @@ from PySide6.QtWidgets import (
 )
 
 from pivot.application.state import TaskSortMode, TaskStatusFilter, TaskViewState
-from pivot.constants import DATE_DISPLAY_FORMAT, RECENT_HISTORY_PREVIEW_COUNT, TOOLTIP_DATE_FORMAT
+from pivot.constants import (
+    DATE_DISPLAY_FORMAT,
+    RECENT_HISTORY_PREVIEW_COUNT,
+    TOOLTIP_BODY_MAX_LENGTH,
+    TOOLTIP_DATE_FORMAT,
+)
 from pivot.domain.models import Quadrant, Task
+from pivot.ui.theme import TEXT, TEXT_COMPLETED
 
 TASK_MIME_TYPE = "application/x-pivot-task-id"
 ITEM_IDENTIFIER_ROLE = Qt.ItemDataRole.UserRole
@@ -94,7 +100,7 @@ class TaskListWidget(QListWidget):
             item.setData(ITEM_IDENTIFIER_ROLE, task.id)
             item.setFlags(item.flags() | Qt.ItemFlag.ItemIsEditable)
             item.setToolTip(self._build_tooltip(task))
-            item.setForeground(QColor("#aeb9d6" if task.is_completed else "#edf2ff"))
+            item.setForeground(QColor(TEXT_COMPLETED if task.is_completed else TEXT))
             font = item.font()
             font.setStrikeOut(task.is_completed)
             item.setFont(font)
@@ -172,7 +178,7 @@ class TaskListWidget(QListWidget):
         if task.due_at is not None:
             due_text = f"Due: {task.due_at.astimezone().strftime(TOOLTIP_DATE_FORMAT)}\n"
         body = task.content_markdown.strip() or "No notes yet"
-        return f"{due_text}{body[:400]}"
+        return f"{due_text}{body[:TOOLTIP_BODY_MAX_LENGTH]}"
 
 
 class TaskSectionPanel(QFrame):
