@@ -85,7 +85,6 @@ class TaskListWidget(QListWidget):
         self.setEditTriggers(
             QAbstractItemView.EditTrigger.DoubleClicked
             | QAbstractItemView.EditTrigger.EditKeyPressed
-            | QAbstractItemView.EditTrigger.SelectedClicked
         )
         self.currentItemChanged.connect(self._emit_selection)
         self.itemChanged.connect(self._handle_item_changed)
@@ -176,7 +175,8 @@ class TaskListWidget(QListWidget):
     def _build_tooltip(self, task: Task) -> str:
         due_text = ""
         if task.due_at is not None:
-            due_text = f"Due: {task.due_at.astimezone().strftime(TOOLTIP_DATE_FORMAT)}\n"
+            local_zone = datetime.now().astimezone().tzinfo or UTC
+            due_text = f"Due: {task.due_at.astimezone(local_zone).strftime(TOOLTIP_DATE_FORMAT)}\n"
         body = task.content_markdown.strip() or "No notes yet"
         return f"{due_text}{body[:TOOLTIP_BODY_MAX_LENGTH]}"
 

@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING
 
 from PySide6.QtCore import QObject, Signal
 
-from pivot.constants import BOARD_SECTION_ORDER
+from pivot.constants import BOARD_SECTION_ORDER, HISTORY_DISPLAY_FORMAT
 from pivot.domain.models import Quadrant, Task, TaskDocument
 
 if TYPE_CHECKING:
@@ -289,7 +289,7 @@ class AppState(QObject):
         if task is None:
             return []
         return [
-            f"{entry.timestamp.astimezone(UTC).strftime('%Y-%m-%d %H:%M')} · {entry.action}"
+            f"{entry.timestamp.astimezone(UTC).strftime(HISTORY_DISPLAY_FORMAT)} · {entry.action}"
             for entry in reversed(task.history)
         ]
 
