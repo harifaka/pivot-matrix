@@ -33,7 +33,11 @@ from PySide6.QtWidgets import (
 
 from pivot.application.state import AppState
 from pivot.config import UserConfig
-from pivot.constants import DATE_DISPLAY_FORMAT, WINDOW_MINIMUM_SIZE
+from pivot.constants import (
+    DATE_DISPLAY_FORMAT,
+    RECENT_HISTORY_PREVIEW_COUNT,
+    WINDOW_MINIMUM_SIZE,
+)
 from pivot.domain.models import Quadrant, Task
 
 
@@ -218,7 +222,9 @@ class TaskEditor(QFrame):
             quadrant_index = self._quadrant_combo.findData(task.quadrant)
         self._quadrant_combo.setCurrentIndex(max(quadrant_index, 0))
         self._quadrant_combo.setEnabled(not task.inbox)
-        self._history.setText("\n".join(history[:6]) or "No history yet")
+        self._history.setText(
+            "\n".join(history[:RECENT_HISTORY_PREVIEW_COUNT]) or "No history yet"
+        )
         self._loading = False
 
     def _set_enabled(self, enabled: bool) -> None:
