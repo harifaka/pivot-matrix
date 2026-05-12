@@ -11,6 +11,7 @@ BACKGROUND = "#0b0f17"
 PANEL = "#121827"
 PANEL_ALT = "#0f1524"
 BORDER = "#232c42"
+GLOW = "rgba(99, 245, 210, 0.14)"
 TEXT = "#edf2ff"
 TEXT_MUTED = "#8b98b8"
 SUCCESS = "#7fe6a2"
@@ -42,19 +43,33 @@ def stylesheet() -> str:
         font-family: Segoe UI, Inter, Arial, sans-serif;
         font-size: 13px;
     }}
-    QMainWindow, QMenu, QStatusBar {{
+    QMainWindow, QMenu, QStatusBar, QDialog {{
         background: {BACKGROUND};
     }}
-    QFrame#Panel, QListWidget, QTextEdit, QTextBrowser, QLineEdit, QDateTimeEdit, QComboBox {{
+    QToolBar {{
+        background: transparent;
+        border: none;
+        spacing: 8px;
+    }}
+    QStatusBar {{
+        color: {TEXT_MUTED};
+    }}
+    QFrame#Panel, QListWidget, QTextEdit, QTextBrowser, QLineEdit, QDateTimeEdit, QComboBox, QDialog {{
         background: {PANEL};
         border: 1px solid {BORDER};
         border-radius: 14px;
         padding: 8px;
     }}
+    QFrame#Panel {{
+        background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 {PANEL}, stop:1 {PANEL_ALT});
+    }}
     QListWidget::item {{
         padding: 10px 8px;
         margin: 4px 0;
         border-radius: 10px;
+    }}
+    QListWidget::item:hover {{
+        background: rgba(99, 245, 210, 0.08);
     }}
     QListWidget::item:selected {{
         background: rgba(99, 245, 210, 0.18);
@@ -68,10 +83,20 @@ def stylesheet() -> str:
     }}
     QPushButton:hover {{
         border-color: {ACCENT};
+        background: {GLOW};
     }}
     QPushButton#PrimaryButton {{
         background: rgba(99, 245, 210, 0.14);
         border-color: rgba(99, 245, 210, 0.42);
+    }}
+    QPushButton#SectionAddButton {{
+        min-width: 32px;
+        max-width: 32px;
+        min-height: 32px;
+        max-height: 32px;
+        border-radius: 16px;
+        font-size: 18px;
+        padding: 0;
     }}
     QTabBar::tab {{
         background: {PANEL_ALT};
@@ -99,6 +124,12 @@ def stylesheet() -> str:
     }}
     QCheckBox {{
         spacing: 8px;
+    }}
+    QSplitter::handle {{
+        background: transparent;
+    }}
+    QLineEdit:focus, QTextEdit:focus, QTextBrowser:focus, QListWidget:focus, QDateTimeEdit:focus, QComboBox:focus {{
+        border-color: rgba(99, 245, 210, 0.55);
     }}
     QScrollBar:vertical {{
         width: 12px;

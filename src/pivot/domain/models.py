@@ -137,6 +137,20 @@ class Task:
             return first_line[0][:72]
         return "Untitled task"
 
+    @property
+    def search_text(self) -> str:
+        return "\n".join((self.title, self.content_markdown)).casefold()
+
+    @property
+    def section_key(self) -> str:
+        return "inbox" if self.inbox or self.quadrant is None else self.quadrant.value
+
+    def matches_query(self, query: str) -> bool:
+        normalized = query.strip().casefold()
+        if not normalized:
+            return True
+        return all(token in self.search_text for token in normalized.split())
+
     def snapshot(self) -> dict[str, Any]:
         return {
             "id": self.id,
@@ -168,6 +182,7 @@ class Task:
         due_at: datetime | None,
         inbox: bool,
         quadrant: Quadrant | None,
+        action: str = "updated",
     ) -> bool:
         next_quadrant = None if inbox else quadrant or self.quadrant or Quadrant.DO
         changed = False
@@ -187,7 +202,7 @@ class Task:
             self.quadrant = next_quadrant
             changed = True
         if changed:
-            self.touch("updated")
+            self.touch(action)
         return changed
 
     def set_completed(self, completed: bool) -> bool:
