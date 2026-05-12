@@ -581,10 +581,10 @@ class CommandPaletteDialog(QDialog):
             if key == Qt.Key.Key_Down:
                 self._navigate_list(1)
                 return True
-            if key == Qt.Key.Key_Up:
+            elif key == Qt.Key.Key_Up:
                 self._navigate_list(-1)
                 return True
-            if key in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
+            elif key in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
                 if self._list.count() > 0:
                     self.accept()
                 return True

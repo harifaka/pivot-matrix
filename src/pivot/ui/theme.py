@@ -22,6 +22,7 @@ SUCCESS = "#7fe6a2"
 WARNING = "#ffd56b"
 
 LIGHT_THEME_TOKEN_MAP = {
+    # Background and surface colours
     BACKGROUND: "#f4f6fb",
     PANEL: "#ffffff",
     PANEL_ALT: "#f7f9ff",
@@ -29,8 +30,10 @@ LIGHT_THEME_TOKEN_MAP = {
     TEXT: "#1d2433",
     TEXT_COMPLETED: "#61718f",
     TEXT_MUTED: "#6f7c98",
+    # Glow tokens — replace cyan with purple for the light theme
     GLOW: "rgba(168, 111, 255, 0.10)",
     GLOW_SOFT: "rgba(168, 111, 255, 0.06)",
+    # Inline opacity replacements in QSS strings (ordered specific → general)
     "rgba(99, 245, 210, 0.08)": "rgba(168, 111, 255, 0.06)",
     "rgba(99, 245, 210, 0.12)": "rgba(168, 111, 255, 0.10)",
     "rgba(99, 245, 210, 0.14)": "rgba(168, 111, 255, 0.10)",
