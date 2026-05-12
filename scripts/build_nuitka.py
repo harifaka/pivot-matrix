@@ -18,7 +18,11 @@ from pivot.constants import APP_AUTHOR, APP_NAME, APP_VERSION  # noqa: E402
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Build Pivot with Nuitka.")
-    parser.add_argument("--standalone", action="store_true", help="Build standalone folder executable.")
+    parser.add_argument(
+        "--standalone",
+        action="store_true",
+        help="Build standalone folder executable.",
+    )
     parser.add_argument("--onefile", action="store_true", help="Build onefile executable.")
     parser.add_argument(
         "--portable-release",
@@ -45,7 +49,7 @@ def main() -> int:
         sys.executable,
         "-m",
         "nuitka",
-        "--standalone" if args.standalone or onefile else "--standalone",
+        "--standalone",
         "--assume-yes-for-downloads",
         "--enable-plugin=pyside6",
         "--windows-console-mode=disable",

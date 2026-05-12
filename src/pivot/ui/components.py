@@ -38,7 +38,7 @@ from pivot.constants import (
     TOOLTIP_DATE_FORMAT,
 )
 from pivot.domain.models import Quadrant, Task
-from pivot.ui.markdown import sanitize_markdown
+from pivot.markdown_sanitize import sanitize_markdown
 from pivot.ui.theme import TEXT, TEXT_COMPLETED
 
 TASK_MIME_TYPE = "application/x-pivot-task-id"

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import sys
+from types import TracebackType
 
 from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import QApplication, QSystemTrayIcon
@@ -30,7 +31,7 @@ def run() -> int:
     def handle_unhandled_exception(
         exc_type: type[BaseException],
         exc_value: BaseException,
-        exc_traceback: object,
+        exc_traceback: TracebackType | None,
     ) -> None:
         logger.critical(
             "Unhandled exception",
@@ -116,5 +117,13 @@ def run() -> int:
     if tray is not None:
         tray.showMessage("Pivot", "Offline-first matrix ready.", tray.MessageIcon.Information, 2500)
         if environment.user_config.start_minimized:
-            QTimer.singleShot(1500, lambda: tray.showMessage("Pivot", "Running in tray.", tray.MessageIcon.Information, 2000))
+            QTimer.singleShot(
+                1500,
+                lambda: tray.showMessage(
+                    "Pivot",
+                    "Running in tray.",
+                    tray.MessageIcon.Information,
+                    2000,
+                ),
+            )
     return app.exec()

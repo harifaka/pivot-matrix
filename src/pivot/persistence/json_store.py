@@ -58,9 +58,11 @@ class JsonDataStore:
     def _document_from_payload(self, payload: dict[str, Any]) -> TaskDocument:
         schema_version = int(payload.get("schema_version", SCHEMA_VERSION))
         if schema_version > SCHEMA_VERSION:
-            raise UnsupportedSchemaVersionError(
-                f"Schema version {schema_version} is newer than supported version {SCHEMA_VERSION}.",
+            message = (
+                f"Schema version {schema_version} is newer than supported version "
+                f"{SCHEMA_VERSION}."
             )
+            raise UnsupportedSchemaVersionError(message)
         return TaskDocument.from_dict(payload)
 
     def _load_payload_from(self, path: Path) -> dict[str, Any]:
@@ -76,7 +78,11 @@ class JsonDataStore:
             candidates.append(sidecar)
         if self.backup_dir and self.backup_dir.exists():
             backups = sorted(
-                [path for path in self.backup_dir.glob(f"{self.file_path.stem}-*.json") if path.is_file()],
+                [
+                    path
+                    for path in self.backup_dir.glob(f"{self.file_path.stem}-*.json")
+                    if path.is_file()
+                ],
                 reverse=True,
             )
             candidates.extend(backups)
@@ -135,7 +141,11 @@ class JsonDataStore:
         if self.backup_dir is None or not self.backup_dir.exists():
             return
         backups = sorted(
-            [path for path in self.backup_dir.glob(f"{self.file_path.stem}-*.json") if path.is_file()],
+            [
+                path
+                for path in self.backup_dir.glob(f"{self.file_path.stem}-*.json")
+                if path.is_file()
+            ],
             reverse=True,
         )
         for stale in backups[MAX_BACKUP_SNAPSHOTS:]:

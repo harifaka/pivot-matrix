@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from pivot.ui.markdown import sanitize_markdown
+from pivot.markdown_sanitize import sanitize_markdown
 
 
 def test_markdown_sanitization_removes_html_and_script_blocks() -> None:

@@ -21,6 +21,19 @@ TEXT_MUTED = "#8b98b8"
 SUCCESS = "#7fe6a2"
 WARNING = "#ffd56b"
 
+LIGHT_THEME_TOKEN_MAP = {
+    BACKGROUND: "#f4f6fb",
+    PANEL: "#ffffff",
+    PANEL_ALT: "#f7f9ff",
+    BORDER: "#d8deef",
+    TEXT: "#1d2433",
+    TEXT_COMPLETED: "#61718f",
+    TEXT_MUTED: "#6f7c98",
+    "rgba(99, 245, 210, 0.18)": "rgba(168, 111, 255, 0.14)",
+    "rgba(99, 245, 210, 0.5)": "rgba(168, 111, 255, 0.4)",
+    "rgba(99, 245, 210, 0.55)": "rgba(168, 111, 255, 0.45)",
+}
+
 
 def normalize_theme_name(name: str) -> str:
     return name if name in {APP_THEME_DARK, APP_THEME_LIGHT} else DEFAULT_THEME
@@ -64,19 +77,14 @@ def _apply_light_theme(app: QApplication) -> None:
     palette.setColor(QPalette.ColorRole.Highlight, QColor(ACCENT_ALT))
     palette.setColor(QPalette.ColorRole.HighlightedText, QColor("#ffffff"))
     app.setPalette(palette)
-    app.setStyleSheet(
-        stylesheet()
-        .replace(BACKGROUND, "#f4f6fb")
-        .replace(PANEL, "#ffffff")
-        .replace(PANEL_ALT, "#f7f9ff")
-        .replace(BORDER, "#d8deef")
-        .replace(TEXT, "#1d2433")
-        .replace(TEXT_COMPLETED, "#61718f")
-        .replace(TEXT_MUTED, "#6f7c98")
-        .replace("rgba(99, 245, 210, 0.18)", "rgba(168, 111, 255, 0.14)")
-        .replace("rgba(99, 245, 210, 0.5)", "rgba(168, 111, 255, 0.4)")
-        .replace("rgba(99, 245, 210, 0.55)", "rgba(168, 111, 255, 0.45)")
-    )
+    app.setStyleSheet(_mapped_stylesheet(stylesheet(), LIGHT_THEME_TOKEN_MAP))
+
+
+def _mapped_stylesheet(source: str, replacements: dict[str, str]) -> str:
+    themed = source
+    for token, value in replacements.items():
+        themed = themed.replace(token, value)
+    return themed
 
 
 def stylesheet() -> str:

@@ -4,7 +4,10 @@ from __future__ import annotations
 
 import re
 
-SCRIPT_BLOCK_PATTERN = re.compile(r"<\s*(script|style)\b[^>]*>.*?<\s*/\s*\1\s*>", re.IGNORECASE | re.DOTALL)
+SCRIPT_BLOCK_PATTERN = re.compile(
+    r"<\s*(script|style)\b[^>]*>.*?<\s*/\s*\1\s*>",
+    re.IGNORECASE | re.DOTALL,
+)
 HTML_TAG_PATTERN = re.compile(r"<[^>]+>")
 JAVASCRIPT_LINK_PATTERN = re.compile(r"\((\s*javascript:[^)]+)\)", re.IGNORECASE)
 

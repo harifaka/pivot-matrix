@@ -85,17 +85,26 @@ class AppTrayIcon(QSystemTrayIcon):
         theme_menu = settings_menu.addMenu("Theme")
         theme_group = QActionGroup(self)
         theme_group.setExclusive(True)
+
+        def handle_dark_theme(checked: bool) -> None:
+            if checked:
+                on_theme_change(APP_THEME_DARK)
+
+        def handle_light_theme(checked: bool) -> None:
+            if checked:
+                on_theme_change(APP_THEME_LIGHT)
+
         dark_action = QAction("Dark", self)
         dark_action.setCheckable(True)
         dark_action.setChecked(active_theme == APP_THEME_DARK)
-        dark_action.triggered.connect(lambda checked: checked and on_theme_change(APP_THEME_DARK))
+        dark_action.triggered.connect(handle_dark_theme)
         theme_group.addAction(dark_action)
         theme_menu.addAction(dark_action)
 
         light_action = QAction("Light", self)
         light_action.setCheckable(True)
         light_action.setChecked(active_theme == APP_THEME_LIGHT)
-        light_action.triggered.connect(lambda checked: checked and on_theme_change(APP_THEME_LIGHT))
+        light_action.triggered.connect(handle_light_theme)
         theme_group.addAction(light_action)
         theme_menu.addAction(light_action)
 
