@@ -31,7 +31,7 @@ from PySide6.QtWidgets import (
 )
 
 from pivot.application.state import TaskSortMode, TaskStatusFilter, TaskViewState
-from pivot.constants import DATE_DISPLAY_FORMAT, RECENT_HISTORY_PREVIEW_COUNT, UTC_TOOLTIP_FORMAT
+from pivot.constants import DATE_DISPLAY_FORMAT, RECENT_HISTORY_PREVIEW_COUNT, TOOLTIP_DATE_FORMAT
 from pivot.domain.models import Quadrant, Task
 
 TASK_MIME_TYPE = "application/x-pivot-task-id"
@@ -170,7 +170,7 @@ class TaskListWidget(QListWidget):
     def _build_tooltip(self, task: Task) -> str:
         due_text = ""
         if task.due_at is not None:
-            due_text = f"Due: {task.due_at.astimezone(UTC).strftime(UTC_TOOLTIP_FORMAT)}\n"
+            due_text = f"Due: {task.due_at.astimezone().strftime(TOOLTIP_DATE_FORMAT)}\n"
         body = task.content_markdown.strip() or "No notes yet"
         return f"{due_text}{body[:400]}"
 
@@ -217,7 +217,7 @@ class TaskSectionPanel(QFrame):
 
     def refresh(self, tasks: list[Task], selected_id: str) -> None:
         self._header.setText(self._title)
-        count_text = f"{len(tasks)} task" if len(tasks) == 1 else f"{len(tasks)} tasks"
+        count_text = f"{len(tasks)} task{'s' if len(tasks) != 1 else ''}"
         self._meta.setText(count_text)
         self._list.refresh(tasks, selected_id)
 
