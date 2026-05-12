@@ -276,14 +276,14 @@ class MainWindow(QMainWindow):
         # Reveal inbox overlay so the new task is visible
         if not self._inbox_overlay.isVisible():
             self._inbox_btn.setChecked(True)
-        QTimer.singleShot(50, self._editor_dialog.focus_title)
+        QTimer.singleShot(0, self._editor_dialog.focus_title)
 
     def _create_task_for_section(self, section: str) -> None:
         if section == "inbox":
             self._create_inbox_task()
             return
         self._state.create_task(quadrant=Quadrant(section), inbox=False)
-        QTimer.singleShot(50, self._editor_dialog.focus_title)
+        QTimer.singleShot(0, self._editor_dialog.focus_title)
 
     # ------------------------------------------------------------------
     # Inbox overlay
