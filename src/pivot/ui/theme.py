@@ -12,6 +12,7 @@ PANEL = "#121827"
 PANEL_ALT = "#0f1524"
 BORDER = "#232c42"
 GLOW = "rgba(99, 245, 210, 0.14)"
+GLOW_SOFT = "rgba(99, 245, 210, 0.08)"
 TEXT = "#edf2ff"
 TEXT_MUTED = "#8b98b8"
 SUCCESS = "#7fe6a2"
@@ -76,7 +77,7 @@ def stylesheet() -> str:
         border-radius: 10px;
     }}
     QListWidget::item:hover {{
-        background: rgba(99, 245, 210, 0.08);
+        background: {GLOW_SOFT};
     }}
     QListWidget::item:selected {{
         background: rgba(99, 245, 210, 0.18);

@@ -35,7 +35,7 @@ from pivot.constants import DATE_DISPLAY_FORMAT, RECENT_HISTORY_PREVIEW_COUNT
 from pivot.domain.models import Quadrant, Task
 
 TASK_MIME_TYPE = "application/x-pivot-task-id"
-TASK_ID_ROLE = Qt.ItemDataRole.UserRole
+ITEM_IDENTIFIER_ROLE = Qt.ItemDataRole.UserRole
 
 
 @dataclass(slots=True)
@@ -91,7 +91,7 @@ class TaskListWidget(QListWidget):
         current_row = -1
         for index, task in enumerate(tasks):
             item = QListWidgetItem(task.display_title)
-            item.setData(TASK_ID_ROLE, task.id)
+            item.setData(ITEM_IDENTIFIER_ROLE, task.id)
             item.setFlags(item.flags() | Qt.ItemFlag.ItemIsEditable)
             item.setToolTip(self._build_tooltip(task))
             item.setForeground(QColor("#aeb9d6" if task.is_completed else "#edf2ff"))
@@ -115,7 +115,7 @@ class TaskListWidget(QListWidget):
         item = self.currentItem()
         if item is None:
             return
-        task_id = item.data(TASK_ID_ROLE)
+        task_id = item.data(ITEM_IDENTIFIER_ROLE)
         if not isinstance(task_id, str):
             return
         mime_data = QMimeData()
@@ -156,14 +156,14 @@ class TaskListWidget(QListWidget):
         del previous
         if current is None:
             return
-        task_id = current.data(TASK_ID_ROLE)
+        task_id = current.data(ITEM_IDENTIFIER_ROLE)
         if isinstance(task_id, str):
             self.task_selected.emit(task_id)
 
     def _handle_item_changed(self, item: QListWidgetItem) -> None:
         if self._refreshing:
             return
-        task_id = item.data(TASK_ID_ROLE)
+        task_id = item.data(ITEM_IDENTIFIER_ROLE)
         if isinstance(task_id, str):
             self.title_edited.emit(task_id, item.text())
 
@@ -521,7 +521,7 @@ class CommandPaletteDialog(QDialog):
         item = self._list.currentItem()
         if item is None:
             return ""
-        command_id = item.data(TASK_ID_ROLE)
+        command_id = item.data(ITEM_IDENTIFIER_ROLE)
         return command_id if isinstance(command_id, str) else ""
 
     def open_with_focus(self) -> int:
@@ -537,7 +537,7 @@ class CommandPaletteDialog(QDialog):
             if query and query not in command.search_text:
                 continue
             item = QListWidgetItem(command.title)
-            item.setData(TASK_ID_ROLE, command.identifier)
+            item.setData(ITEM_IDENTIFIER_ROLE, command.identifier)
             tooltip_parts = [command.subtitle, command.shortcut]
             item.setToolTip(" · ".join(part for part in tooltip_parts if part))
             item.setData(Qt.ItemDataRole.StatusTipRole, command.subtitle)
