@@ -6,15 +6,22 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any, override
 
-from PySide6.QtCore import QDateTime, QMimeData, QSignalBlocker, Qt, QTimer, Signal
-from PySide6.QtGui import QColor, QDrag, QDragEnterEvent, QDragMoveEvent, QDropEvent, QFont
+from PySide6.QtCore import QDateTime, QEvent, QMimeData, QObject, QSignalBlocker, Qt, QTimer, Signal
+from PySide6.QtGui import (
+    QColor,
+    QDrag,
+    QDragEnterEvent,
+    QDragMoveEvent,
+    QDropEvent,
+    QFont,
+    QKeyEvent,
+)
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QCheckBox,
     QComboBox,
     QDateTimeEdit,
     QDialog,
-    QDialogButtonBox,
     QFrame,
     QGridLayout,
     QHBoxLayout,
@@ -23,6 +30,7 @@ from PySide6.QtWidgets import (
     QListWidget,
     QListWidgetItem,
     QPushButton,
+    QSizePolicy,
     QTabWidget,
     QTextBrowser,
     QTextEdit,
@@ -182,6 +190,40 @@ class TaskListWidget(QListWidget):
         return f"{due_text}{body[:TOOLTIP_BODY_MAX_LENGTH]}"
 
 
+class ActivityTimeline(QFrame):
+    """Scrollable read-only activity log for a task."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.setObjectName("ActivityTimeline")
+        header = QLabel("Activity")
+        header.setProperty("class", "eyebrow")
+        self._list = QListWidget()
+        self._list.setObjectName("TimelineList")
+        self._list.setSelectionMode(QAbstractItemView.SelectionMode.NoSelection)
+        self._list.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self._list.setFrameShape(QFrame.Shape.NoFrame)
+        self._list.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        self._list.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 4, 0, 0)
+        layout.setSpacing(4)
+        layout.addWidget(header)
+        layout.addWidget(self._list, 1)
+
+    def set_entries(self, entries: list[str]) -> None:
+        self._list.clear()
+        if not entries:
+            item = QListWidgetItem("No activity yet")
+            item.setFlags(Qt.ItemFlag.ItemIsEnabled)
+            self._list.addItem(item)
+            return
+        for entry in entries:
+            item = QListWidgetItem(entry)
+            item.setFlags(Qt.ItemFlag.ItemIsEnabled)
+            self._list.addItem(item)
+
+
 class TaskSectionPanel(QFrame):
     """Reusable section shell for inbox and quadrants."""
 
@@ -293,10 +335,12 @@ class FilterBar(QFrame):
         self._status.setCurrentIndex(max(self._status.findData(view_state.status), 0))
         self._sort.setCurrentIndex(max(self._sort.findData(view_state.sort), 0))
         total = counts[TaskStatusFilter.ALL]
+        today = counts[TaskStatusFilter.TODAY]
         self._summary.setText(
             f"{visible_count} visible · {counts[TaskStatusFilter.ACTIVE]} active · "
             f"{counts[TaskStatusFilter.COMPLETED]} completed · "
             f"{counts[TaskStatusFilter.ARCHIVED]} archived · "
+            f"{today} due today · "
             f"{total} total"
         )
         del query_blocker
@@ -365,9 +409,7 @@ class TaskEditorPanel(QFrame):
         action_row.addWidget(restore_button)
         action_row.addStretch(1)
 
-        self._history = QLabel("No history yet")
-        self._history.setWordWrap(True)
-        self._history.setProperty("class", "muted")
+        self._history = ActivityTimeline()
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(18, 18, 18, 18)
@@ -410,7 +452,7 @@ class TaskEditorPanel(QFrame):
             self._title_edit.clear()
             self._body_edit.clear()
             self._preview.clear()
-            self._history.setText("Select a task to start editing.")
+            self._history.set_entries([])
             self._loading = False
             return
 
@@ -427,7 +469,7 @@ class TaskEditorPanel(QFrame):
             quadrant_index = self._quadrant_combo.findData(task.quadrant)
         self._quadrant_combo.setCurrentIndex(max(quadrant_index, 0))
         self._quadrant_combo.setEnabled(not task.inbox)
-        self._history.setText("\n".join(history[:RECENT_HISTORY_PREVIEW_COUNT]) or "No history yet")
+        self._history.set_entries(history[:RECENT_HISTORY_PREVIEW_COUNT])
         self._loading = False
 
     def _set_enabled(self, enabled: bool) -> None:
@@ -490,35 +532,30 @@ class CommandPaletteDialog(QDialog):
         super().__init__(parent)
         self.setWindowTitle("Command Palette")
         self.setModal(True)
-        self.resize(520, 420)
+        self.resize(560, 440)
         self._commands: list[PaletteCommand] = []
 
+        eyebrow = QLabel("Commands")
+        eyebrow.setProperty("class", "eyebrow")
         title = QLabel("Command palette")
         title.setProperty("class", "sectionTitle")
-        eyebrow = QLabel("Foundation")
-        eyebrow.setProperty("class", "eyebrow")
 
         self._query = QLineEdit()
-        self._query.setPlaceholderText("Type a command")
+        self._query.setPlaceholderText("Type a command…")
+        self._query.setClearButtonEnabled(True)
         self._query.textChanged.connect(self._refresh_list)
+        self._query.installEventFilter(self)
 
         self._list = QListWidget()
         self._list.itemDoubleClicked.connect(lambda _: self.accept())
 
-        buttons = QDialogButtonBox(
-            QDialogButtonBox.StandardButton.Cancel | QDialogButtonBox.StandardButton.Ok
-        )
-        buttons.accepted.connect(self.accept)
-        buttons.rejected.connect(self.reject)
-
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(18, 18, 18, 18)
-        layout.setSpacing(10)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(12)
         layout.addWidget(eyebrow)
         layout.addWidget(title)
         layout.addWidget(self._query)
         layout.addWidget(self._list, 1)
-        layout.addWidget(buttons)
 
     def set_commands(self, commands: list[PaletteCommand]) -> None:
         self._commands = commands
@@ -537,17 +574,42 @@ class CommandPaletteDialog(QDialog):
         self._query.setFocus(Qt.FocusReason.ShortcutFocusReason)
         return self.exec()
 
+    @override
+    def eventFilter(self, watched: QObject, event: QEvent) -> bool:
+        if watched is self._query and isinstance(event, QKeyEvent):
+            key = event.key()
+            if key == Qt.Key.Key_Down:
+                self._navigate_list(1)
+                return True
+            elif key == Qt.Key.Key_Up:
+                self._navigate_list(-1)
+                return True
+            elif key in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
+                if self._list.count() > 0:
+                    self.accept()
+                return True
+        return bool(super().eventFilter(watched, event))
+
+    def _navigate_list(self, delta: int) -> None:
+        count = self._list.count()
+        if count == 0:
+            return
+        current = self._list.currentRow()
+        next_row = max(0, min(count - 1, current + delta))
+        self._list.setCurrentRow(next_row)
+
     def _refresh_list(self) -> None:
         query = self._query.text().strip().casefold()
         self._list.clear()
         for command in self._commands:
             if query and query not in command.search_text:
                 continue
-            item = QListWidgetItem(command.title)
+            label = command.title
+            if command.shortcut:
+                label = f"{command.title}  [{command.shortcut}]"
+            item = QListWidgetItem(label)
             item.setData(ITEM_IDENTIFIER_ROLE, command.identifier)
-            tooltip_parts = [command.subtitle, command.shortcut]
-            item.setToolTip(" · ".join(part for part in tooltip_parts if part))
-            item.setData(Qt.ItemDataRole.StatusTipRole, command.subtitle)
+            item.setToolTip(command.subtitle)
             font = QFont(item.font())
             font.setBold(True)
             item.setFont(font)

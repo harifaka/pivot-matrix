@@ -28,6 +28,7 @@ class TaskStatusFilter(StrEnum):
     ACTIVE = "active"
     COMPLETED = "completed"
     ARCHIVED = "archived"
+    TODAY = "today"
     ALL = "all"
 
     @property
@@ -36,6 +37,7 @@ class TaskStatusFilter(StrEnum):
             TaskStatusFilter.ACTIVE: "Active",
             TaskStatusFilter.COMPLETED: "Completed",
             TaskStatusFilter.ARCHIVED: "Archived",
+            TaskStatusFilter.TODAY: "Due today",
             TaskStatusFilter.ALL: "All tasks",
         }[self]
 
@@ -292,6 +294,8 @@ class AppState(QObject):
         return {section: sections.get(section, []) for section in BOARD_SECTION_ORDER}
 
     def counts_by_status(self) -> dict[TaskStatusFilter, int]:
+        local_now = datetime.now().astimezone()
+        local_tz = local_now.tzinfo
         return {
             TaskStatusFilter.ACTIVE: sum(
                 1 for task in self._document.tasks if not task.archived and not task.is_completed
@@ -300,6 +304,13 @@ class AppState(QObject):
                 1 for task in self._document.tasks if not task.archived and task.is_completed
             ),
             TaskStatusFilter.ARCHIVED: sum(1 for task in self._document.tasks if task.archived),
+            TaskStatusFilter.TODAY: sum(
+                1
+                for task in self._document.tasks
+                if not task.archived
+                and task.due_at is not None
+                and task.due_at.astimezone(local_tz).date() <= local_now.date()
+            ),
             TaskStatusFilter.ALL: len(self._document.tasks),
         }
 
@@ -321,6 +332,11 @@ class AppState(QObject):
             return not task.archived and task.is_completed
         if self._view.status is TaskStatusFilter.ARCHIVED:
             return task.archived
+        if self._view.status is TaskStatusFilter.TODAY:
+            if task.archived or task.due_at is None:
+                return False
+            local_now = datetime.now().astimezone()
+            return task.due_at.astimezone(local_now.tzinfo).date() <= local_now.date()
         return True
 
     def _sort_key(self, task: Task) -> tuple[object, ...]:

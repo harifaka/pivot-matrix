@@ -43,6 +43,7 @@ class MainWindow(QMainWindow):
         self._tray_enabled = user_config.tray_enabled
         self._minimize_to_tray = user_config.minimize_to_tray
         self._allow_close = False
+        self._focus_mode = False
         self.setWindowTitle("Pivot")
         self.setMinimumSize(*WINDOW_MINIMUM_SIZE)
         self.resize(user_config.window.width, user_config.window.height)
@@ -61,6 +62,8 @@ class MainWindow(QMainWindow):
         self._status = QStatusBar()
         self.setStatusBar(self._status)
         self._status.showMessage("Booting")
+        self._board_widget: QWidget
+        self._splitter: QSplitter
 
         self._build_toolbar()
         self._build_layout()
@@ -124,8 +127,8 @@ class MainWindow(QMainWindow):
         root_layout.setSpacing(16)
         root_layout.addWidget(self._filter_bar)
 
-        board_widget = QWidget()
-        board_layout = QVBoxLayout(board_widget)
+        self._board_widget = QWidget()
+        board_layout = QVBoxLayout(self._board_widget)
         board_layout.setContentsMargins(0, 0, 0, 0)
         board_layout.setSpacing(16)
         board_layout.addWidget(self._panels["inbox"], 1)
@@ -138,12 +141,12 @@ class MainWindow(QMainWindow):
         quadrant_grid.addWidget(self._panels["eliminate"], 1, 1)
         board_layout.addLayout(quadrant_grid, 3)
 
-        splitter = QSplitter(Qt.Orientation.Horizontal)
-        splitter.addWidget(board_widget)
-        splitter.addWidget(self._editor)
-        splitter.setSizes([980, 420])
+        self._splitter = QSplitter(Qt.Orientation.Horizontal)
+        self._splitter.addWidget(self._board_widget)
+        self._splitter.addWidget(self._editor)
+        self._splitter.setSizes([980, 420])
 
-        root_layout.addWidget(splitter, 1)
+        root_layout.addWidget(self._splitter, 1)
         self.setCentralWidget(shell)
 
     def _connect_state(self) -> None:
@@ -172,6 +175,7 @@ class MainWindow(QMainWindow):
             ("Ctrl+5", self._panels["eliminate"].focus_list),
             ("Ctrl+F", self._filter_bar.focus_search),
             ("Ctrl+L", self._filter_bar.focus_search),
+            ("Ctrl+.", self._toggle_focus_mode),
         ]
         for sequence, callback in bindings:
             shortcut = QShortcut(QKeySequence(sequence), self)
@@ -261,6 +265,17 @@ class MainWindow(QMainWindow):
             return
         self._state.move_task_to_section(task.id, section)
 
+    def _toggle_focus_mode(self) -> None:
+        self._focus_mode = not self._focus_mode
+        self._board_widget.setVisible(not self._focus_mode)
+        self._filter_bar.setVisible(not self._focus_mode)
+        if self._focus_mode:
+            self._splitter.setSizes([0, 9999])
+            self._status.showMessage("Focus mode — press Ctrl+. to return to board")
+        else:
+            self._splitter.setSizes([980, 420])
+            self._status.showMessage("Board view")
+
     def _open_command_palette(self) -> None:
         self._palette.set_commands(self._palette_commands())
         if self._palette.open_with_focus() != int(QDialog.DialogCode.Accepted):
@@ -284,6 +299,22 @@ class MainWindow(QMainWindow):
                 "focus:search", "Focus search", "Jump to search/filter controls", "Ctrl+F"
             ),
             PaletteCommand("filters:clear", "Clear filters", "Reset search, status, and sort"),
+            PaletteCommand(
+                "mode:focus",
+                "Toggle focus mode",
+                "Hide board — show only the task editor",
+                "Ctrl+.",
+            ),
+            PaletteCommand(
+                "view:today",
+                "Today view",
+                "Show tasks with a due date of today or earlier",
+            ),
+            PaletteCommand(
+                "view:recent",
+                "Recent changes",
+                "Show all tasks sorted by most recently updated",
+            ),
             PaletteCommand(
                 "state:complete",
                 "Toggle completed",
@@ -340,6 +371,16 @@ class MainWindow(QMainWindow):
             return
         if command_id == "filters:clear":
             self._state.clear_filters()
+            return
+        if command_id == "mode:focus":
+            self._toggle_focus_mode()
+            return
+        if command_id == "view:today":
+            self._state.set_status_filter(TaskStatusFilter.TODAY)
+            return
+        if command_id == "view:recent":
+            self._state.set_status_filter(TaskStatusFilter.ALL)
+            self._state.set_sort_mode(TaskSortMode.UPDATED)
             return
         if command_id == "state:complete":
             self._toggle_selected_completed()
