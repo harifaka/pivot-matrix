@@ -5,14 +5,13 @@ from __future__ import annotations
 from functools import partial
 from typing import Any
 
-from PySide6.QtCore import Qt, QTimer
+from PySide6.QtCore import QEvent, QObject, Qt, QTimer
 from PySide6.QtGui import QAction, QCloseEvent, QKeySequence, QShortcut
 from PySide6.QtWidgets import (
     QDialog,
     QGridLayout,
     QMainWindow,
     QPushButton,
-    QSplitter,
     QStatusBar,
     QToolBar,
     QVBoxLayout,
@@ -26,9 +25,10 @@ from pivot.domain.models import Quadrant
 from pivot.ui.components import (
     CommandPaletteDialog,
     EditorPayload,
-    FilterBar,
+    InboxOverlay,
     PaletteCommand,
-    TaskEditorPanel,
+    SearchFilterDialog,
+    TaskEditorDialog,
     TaskSectionPanel,
 )
 
@@ -48,22 +48,24 @@ class MainWindow(QMainWindow):
         self.setMinimumSize(*WINDOW_MINIMUM_SIZE)
         self.resize(user_config.window.width, user_config.window.height)
 
-        self._filter_bar = FilterBar()
         self._panels = {
-            "inbox": TaskSectionPanel("inbox", "Inbox", "Capture"),
             "do": TaskSectionPanel("do", "Do", "Urgent + important"),
             "schedule": TaskSectionPanel("schedule", "Schedule", "Important, not urgent"),
             "delegate": TaskSectionPanel("delegate", "Delegate", "Urgent, not important"),
             "eliminate": TaskSectionPanel("eliminate", "Eliminate", "Not urgent, not important"),
         }
-        self._editor = TaskEditorPanel()
+
+        # Dialogs and overlay — created before layout so they can be wired up
+        self._editor_dialog = TaskEditorDialog(parent=self)
+        self._search_dialog = SearchFilterDialog(parent=self)
         self._palette = CommandPaletteDialog(self)
+        self._inbox_overlay: InboxOverlay  # assigned in _build_layout
+        self._inbox_btn: QPushButton  # assigned in _build_toolbar
+
         self._shortcuts: list[QShortcut] = []
         self._status = QStatusBar()
         self.setStatusBar(self._status)
         self._status.showMessage("Booting")
-        self._board_widget: QWidget
-        self._splitter: QSplitter
 
         self._build_toolbar()
         self._build_layout()
@@ -80,12 +82,16 @@ class MainWindow(QMainWindow):
         self._allow_close = True
         self.close()
 
+    # ------------------------------------------------------------------
+    # Construction helpers
+    # ------------------------------------------------------------------
+
     def _build_toolbar(self) -> None:
         toolbar = QToolBar("Commands", self)
         toolbar.setMovable(False)
         self.addToolBar(Qt.ToolBarArea.TopToolBarArea, toolbar)
 
-        new_action = QAction("New", self)
+        new_action = QAction("New Task", self)
         new_action.setShortcut(QKeySequence.StandardKey.New)
         new_action.triggered.connect(self._create_inbox_task)
         toolbar.addAction(new_action)
@@ -95,71 +101,79 @@ class MainWindow(QMainWindow):
         save_action.triggered.connect(self._state.save_now)
         toolbar.addAction(save_action)
 
-        complete_action = QAction("Toggle Complete", self)
-        complete_action.setShortcut(QKeySequence("Ctrl+Enter"))
-        complete_action.triggered.connect(self._toggle_selected_completed)
-        toolbar.addAction(complete_action)
+        toolbar.addSeparator()
 
-        archive_action = QAction("Archive", self)
-        archive_action.setShortcut(QKeySequence("Ctrl+Backspace"))
-        archive_action.triggered.connect(lambda: self._archive_selected(True))
-        toolbar.addAction(archive_action)
+        # Inbox toggle button with live task count badge
+        self._inbox_btn = QPushButton("📥  Inbox  (0)")
+        self._inbox_btn.setObjectName("PrimaryButton")
+        self._inbox_btn.setCheckable(True)
+        self._inbox_btn.setToolTip("Toggle inbox overlay  [Ctrl+1]")
+        self._inbox_btn.toggled.connect(self._on_inbox_btn_toggled)
+        toolbar.addWidget(self._inbox_btn)
 
-        restore_action = QAction("Restore", self)
-        restore_action.setShortcut(QKeySequence("Ctrl+Shift+Backspace"))
-        restore_action.triggered.connect(lambda: self._archive_selected(False))
-        toolbar.addAction(restore_action)
+        # Search button
+        search_btn = QPushButton("🔍  Search")
+        search_btn.setToolTip("Open search & filter dialog  [Ctrl+F]")
+        search_btn.clicked.connect(self._open_search)
+        toolbar.addWidget(search_btn)
 
-        palette_action = QAction("Command Palette", self)
+        # Task editor toggle button
+        editor_btn = QPushButton("✏️  Details")
+        editor_btn.setToolTip("Open task detail editor  [Ctrl+E]")
+        editor_btn.clicked.connect(self._toggle_editor_dialog)
+        toolbar.addWidget(editor_btn)
+
+        toolbar.addSeparator()
+
+        palette_action = QAction("Commands  [Ctrl+K]", self)
         palette_action.setShortcut(QKeySequence("Ctrl+K"))
         palette_action.triggered.connect(self._open_command_palette)
         toolbar.addAction(palette_action)
 
-        primary_button = QPushButton("New Task")
-        primary_button.setObjectName("PrimaryButton")
-        primary_button.clicked.connect(self._create_inbox_task)
-        toolbar.addWidget(primary_button)
-
     def _build_layout(self) -> None:
         shell = QWidget()
-        root_layout = QVBoxLayout(shell)
-        root_layout.setContentsMargins(18, 18, 18, 18)
-        root_layout.setSpacing(16)
-        root_layout.addWidget(self._filter_bar)
-
-        self._board_widget = QWidget()
-        board_layout = QVBoxLayout(self._board_widget)
-        board_layout.setContentsMargins(0, 0, 0, 0)
-        board_layout.setSpacing(16)
-        board_layout.addWidget(self._panels["inbox"], 1)
+        shell.installEventFilter(self)
 
         quadrant_grid = QGridLayout()
+        quadrant_grid.setContentsMargins(18, 18, 18, 18)
         quadrant_grid.setSpacing(16)
         quadrant_grid.addWidget(self._panels["do"], 0, 0)
         quadrant_grid.addWidget(self._panels["schedule"], 0, 1)
         quadrant_grid.addWidget(self._panels["delegate"], 1, 0)
         quadrant_grid.addWidget(self._panels["eliminate"], 1, 1)
-        board_layout.addLayout(quadrant_grid, 3)
 
-        self._splitter = QSplitter(Qt.Orientation.Horizontal)
-        self._splitter.addWidget(self._board_widget)
-        self._splitter.addWidget(self._editor)
-        self._splitter.setSizes([980, 420])
+        root_layout = QVBoxLayout(shell)
+        root_layout.setContentsMargins(0, 0, 0, 0)
+        root_layout.setSpacing(0)
+        root_layout.addLayout(quadrant_grid, 1)
 
-        root_layout.addWidget(self._splitter, 1)
+        # Inbox overlay is a free-floating child of the shell (not in any layout)
+        self._inbox_overlay = InboxOverlay(parent=shell)
+        self._inbox_overlay.hide()
+        self._inbox_overlay.close_requested.connect(self._close_inbox_overlay)
+
         self.setCentralWidget(shell)
 
     def _connect_state(self) -> None:
+        inbox_panel = self._inbox_overlay.section_panel
+        inbox_panel.task_selected.connect(self._state.select_task)
+        inbox_panel.task_dropped.connect(self._state.move_task_to_section)
+        inbox_panel.title_edited.connect(self._state.rename_task)
+        inbox_panel.create_requested.connect(self._create_task_for_section)
+
         for panel in self._panels.values():
             panel.task_selected.connect(self._state.select_task)
             panel.task_dropped.connect(self._state.move_task_to_section)
             panel.title_edited.connect(self._state.rename_task)
             panel.create_requested.connect(self._create_task_for_section)
-        self._filter_bar.query_changed.connect(self._state.set_search_query)
-        self._filter_bar.status_changed.connect(self._handle_status_filter)
-        self._filter_bar.sort_changed.connect(self._handle_sort_mode)
-        self._editor.payload_changed.connect(self._apply_editor_payload)
-        self._editor.archive_requested.connect(self._archive_selected)
+
+        self._search_dialog.query_changed.connect(self._state.set_search_query)
+        self._search_dialog.status_changed.connect(self._handle_status_filter)
+        self._search_dialog.sort_changed.connect(self._handle_sort_mode)
+
+        self._editor_dialog.payload_changed.connect(self._apply_editor_payload)
+        self._editor_dialog.archive_requested.connect(self._archive_selected)
+
         self._state.document_changed.connect(self.refresh)
         self._state.selection_changed.connect(self._sync_selection)
         self._state.filters_changed.connect(self.refresh)
@@ -167,15 +181,19 @@ class MainWindow(QMainWindow):
         self._state.save_state_changed.connect(self._update_window_title)
 
     def _setup_shortcuts(self) -> None:
-        bindings = [
-            ("Ctrl+1", self._panels["inbox"].focus_list),
+        bindings: list[tuple[str, Any]] = [
+            ("Ctrl+1", self._toggle_inbox_overlay_shortcut),
             ("Ctrl+2", self._panels["do"].focus_list),
             ("Ctrl+3", self._panels["schedule"].focus_list),
             ("Ctrl+4", self._panels["delegate"].focus_list),
             ("Ctrl+5", self._panels["eliminate"].focus_list),
-            ("Ctrl+F", self._filter_bar.focus_search),
-            ("Ctrl+L", self._filter_bar.focus_search),
+            ("Ctrl+F", self._open_search),
+            ("Ctrl+L", self._open_search),
+            ("Ctrl+E", self._toggle_editor_dialog),
             ("Ctrl+.", self._toggle_focus_mode),
+            ("Ctrl+Return", self._toggle_selected_completed),
+            ("Ctrl+Backspace", lambda: self._archive_selected(True)),
+            ("Ctrl+Shift+Backspace", lambda: self._archive_selected(False)),
         ]
         for sequence, callback in bindings:
             shortcut = QShortcut(QKeySequence(sequence), self)
@@ -194,28 +212,49 @@ class MainWindow(QMainWindow):
             shortcut.activated.connect(partial(self._move_selected, section))
             self._shortcuts.append(shortcut)
 
+    # ------------------------------------------------------------------
+    # State refresh
+    # ------------------------------------------------------------------
+
     def refresh(self) -> None:
         sections = self._state.board_sections()
         selected_id = self._state.selected_task_id
+
         for key, panel in self._panels.items():
             panel.refresh(sections.get(key, []), selected_id)
-        self._filter_bar.sync(
-            self._state.view,
-            self._state.counts_by_status(),
-            len(self._state.visible_tasks()),
-        )
-        task = self._state.selected_task()
-        self._editor.populate(task, self._state.history_for(selected_id) if selected_id else [])
+
+        inbox_tasks = sections.get("inbox", [])
+        self._inbox_overlay.refresh(inbox_tasks, selected_id)
+        self._inbox_btn.setText(f"📥  Inbox  ({len(inbox_tasks)})")
+
+        if self._search_dialog.isVisible():
+            self._search_dialog.sync(
+                self._state.view,
+                self._state.counts_by_status(),
+                len(self._state.visible_tasks()),
+            )
+
+        if self._editor_dialog.isVisible():
+            task = self._state.selected_task()
+            history = self._state.history_for(selected_id) if selected_id else []
+            self._editor_dialog.populate(task, history)
+
         self._update_window_title(self._state.is_dirty)
 
     def _sync_selection(self, task_id: str) -> None:
-        self._editor.populate(self._state.get_task(task_id), self._state.history_for(task_id))
+        task = self._state.get_task(task_id)
+        history = self._state.history_for(task_id)
+        self._editor_dialog.populate(task, history)
         self.refresh()
+
+    # ------------------------------------------------------------------
+    # Editor payload
+    # ------------------------------------------------------------------
 
     def _apply_editor_payload(self, payload: Any) -> None:
         if not isinstance(payload, EditorPayload):
             return
-        task_id = self._editor.current_task_id()
+        task_id = self._editor_dialog.current_task_id()
         if not task_id:
             return
         self._state.update_task(
@@ -228,16 +267,83 @@ class MainWindow(QMainWindow):
         )
         self._state.set_task_completed(task_id, payload.completed)
 
+    # ------------------------------------------------------------------
+    # Task creation
+    # ------------------------------------------------------------------
+
     def _create_inbox_task(self) -> None:
         self._state.create_task()
-        QTimer.singleShot(0, self._editor.focus_title)
+        # Reveal inbox overlay so the new task is visible
+        if not self._inbox_overlay.isVisible():
+            self._inbox_btn.setChecked(True)
+        QTimer.singleShot(50, self._editor_dialog.focus_title)
 
     def _create_task_for_section(self, section: str) -> None:
         if section == "inbox":
             self._create_inbox_task()
             return
         self._state.create_task(quadrant=Quadrant(section), inbox=False)
-        QTimer.singleShot(0, self._editor.focus_title)
+        QTimer.singleShot(50, self._editor_dialog.focus_title)
+
+    # ------------------------------------------------------------------
+    # Inbox overlay
+    # ------------------------------------------------------------------
+
+    def _on_inbox_btn_toggled(self, checked: bool) -> None:
+        if checked:
+            self._inbox_overlay.show()
+            self._reposition_inbox_overlay()
+            self._inbox_overlay.raise_()
+            self._inbox_overlay.focus_list()
+        else:
+            self._inbox_overlay.hide()
+
+    def _toggle_inbox_overlay_shortcut(self) -> None:
+        self._inbox_btn.setChecked(not self._inbox_btn.isChecked())
+
+    def _close_inbox_overlay(self) -> None:
+        self._inbox_btn.setChecked(False)
+
+    def _reposition_inbox_overlay(self) -> None:
+        shell = self.centralWidget()
+        if shell is None:
+            return
+        margin = 12
+        width = 340
+        height = max(shell.height() - 2 * margin, 200)
+        self._inbox_overlay.setGeometry(margin, margin, width, height)
+
+    # ------------------------------------------------------------------
+    # Search dialog
+    # ------------------------------------------------------------------
+
+    def _open_search(self) -> None:
+        self._search_dialog.sync(
+            self._state.view,
+            self._state.counts_by_status(),
+            len(self._state.visible_tasks()),
+        )
+        self._search_dialog.focus_search()
+
+    # ------------------------------------------------------------------
+    # Editor dialog toggle
+    # ------------------------------------------------------------------
+
+    def _toggle_editor_dialog(self) -> None:
+        if self._editor_dialog.isVisible():
+            self._editor_dialog.hide()
+        else:
+            task = self._state.selected_task()
+            if task:
+                self._editor_dialog.populate(
+                    task, self._state.history_for(task.id)
+                )
+            else:
+                self._editor_dialog.show()
+
+    # ------------------------------------------------------------------
+    # Filter / sort handlers
+    # ------------------------------------------------------------------
 
     def _handle_status_filter(self, value: object) -> None:
         if isinstance(value, TaskStatusFilter):
@@ -246,6 +352,10 @@ class MainWindow(QMainWindow):
     def _handle_sort_mode(self, value: object) -> None:
         if isinstance(value, TaskSortMode):
             self._state.set_sort_mode(value)
+
+    # ------------------------------------------------------------------
+    # Task actions
+    # ------------------------------------------------------------------
 
     def _toggle_selected_completed(self) -> None:
         task = self._state.selected_task()
@@ -265,16 +375,23 @@ class MainWindow(QMainWindow):
             return
         self._state.move_task_to_section(task.id, section)
 
+    # ------------------------------------------------------------------
+    # Focus mode (toolbar-hiding distraction-free view)
+    # ------------------------------------------------------------------
+
     def _toggle_focus_mode(self) -> None:
         self._focus_mode = not self._focus_mode
-        self._board_widget.setVisible(not self._focus_mode)
-        self._filter_bar.setVisible(not self._focus_mode)
+        toolbar = self.findChild(QToolBar)
+        if toolbar:
+            toolbar.setVisible(not self._focus_mode)
         if self._focus_mode:
-            self._splitter.setSizes([0, 9999])
-            self._status.showMessage("Focus mode — press Ctrl+. to return to board")
+            self._status.showMessage("Focus mode — press Ctrl+. to return to normal")
         else:
-            self._splitter.setSizes([980, 420])
             self._status.showMessage("Board view")
+
+    # ------------------------------------------------------------------
+    # Command palette
+    # ------------------------------------------------------------------
 
     def _open_command_palette(self) -> None:
         self._palette.set_commands(self._palette_commands())
@@ -296,14 +413,26 @@ class MainWindow(QMainWindow):
             PaletteCommand("new:delegate", "New delegate task", "Create directly in Delegate"),
             PaletteCommand("new:eliminate", "New eliminate task", "Create directly in Eliminate"),
             PaletteCommand(
-                "focus:search", "Focus search", "Jump to search/filter controls", "Ctrl+F"
+                "focus:search", "Search & filter", "Open the search dialog", "Ctrl+F"
             ),
             PaletteCommand("filters:clear", "Clear filters", "Reset search, status, and sort"),
             PaletteCommand(
                 "mode:focus",
                 "Toggle focus mode",
-                "Hide board — show only the task editor",
+                "Hide toolbar — pure matrix view",
                 "Ctrl+.",
+            ),
+            PaletteCommand(
+                "editor:toggle",
+                "Toggle task editor",
+                "Show/hide the floating task editor",
+                "Ctrl+E",
+            ),
+            PaletteCommand(
+                "inbox:toggle",
+                "Toggle inbox overlay",
+                "Show/hide the inbox panel",
+                "Ctrl+1",
             ),
             PaletteCommand(
                 "view:today",
@@ -367,13 +496,19 @@ class MainWindow(QMainWindow):
             self._create_task_for_section(command_id.split(":", maxsplit=1)[1])
             return
         if command_id == "focus:search":
-            self._filter_bar.focus_search()
+            self._open_search()
             return
         if command_id == "filters:clear":
             self._state.clear_filters()
             return
         if command_id == "mode:focus":
             self._toggle_focus_mode()
+            return
+        if command_id == "editor:toggle":
+            self._toggle_editor_dialog()
+            return
+        if command_id == "inbox:toggle":
+            self._toggle_inbox_overlay_shortcut()
             return
         if command_id == "view:today":
             self._state.set_status_filter(TaskStatusFilter.TODAY)
@@ -394,9 +529,20 @@ class MainWindow(QMainWindow):
         if command_id.startswith("move:"):
             self._move_selected(command_id.split(":", maxsplit=1)[1])
 
+    # ------------------------------------------------------------------
+    # Window helpers
+    # ------------------------------------------------------------------
+
     def _update_window_title(self, dirty: bool) -> None:
         marker = " •" if dirty else ""
         self.setWindowTitle(f"Pivot{marker}")
+
+    def eventFilter(self, watched: QObject, event: QEvent) -> bool:  # noqa: N802
+        """Reposition the inbox overlay whenever the shell widget is resized."""
+        if event.type() == QEvent.Type.Resize and hasattr(self, "_inbox_overlay"):
+            if self._inbox_overlay.isVisible():
+                self._reposition_inbox_overlay()
+        return False
 
     def closeEvent(self, event: QCloseEvent) -> None:  # noqa: N802
         if self._tray_enabled and self._minimize_to_tray and not self._allow_close:

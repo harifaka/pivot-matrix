@@ -457,7 +457,7 @@ class TaskEditorPanel(QFrame):
             return
 
         self._title_edit.setText(task.title)
-        self._body_edit.setMarkdown(task.content_markdown)
+        self._body_edit.setPlainText(task.content_markdown)
         self._preview.setMarkdown(sanitize_markdown(task.content_markdown))
         self._inbox_check.setChecked(task.inbox)
         self._completed_check.setChecked(task.is_completed)
@@ -499,7 +499,7 @@ class TaskEditorPanel(QFrame):
         self._emit_payload()
 
     def _render_preview(self) -> None:
-        self._preview.setMarkdown(sanitize_markdown(self._body_edit.toMarkdown()))
+        self._preview.setMarkdown(sanitize_markdown(self._body_edit.toPlainText()))
 
     def _emit_payload(self) -> None:
         if self._loading or not self._current_task_id:
@@ -507,7 +507,7 @@ class TaskEditorPanel(QFrame):
         self.payload_changed.emit(
             EditorPayload(
                 title=self._title_edit.text(),
-                content_markdown=self._body_edit.toMarkdown(),
+                content_markdown=self._body_edit.toPlainText(),
                 due_at=self._due_at(),
                 inbox=self._inbox_check.isChecked(),
                 quadrant=self._quadrant_combo.currentData(),
@@ -616,3 +616,118 @@ class CommandPaletteDialog(QDialog):
             self._list.addItem(item)
         if self._list.count() > 0:
             self._list.setCurrentRow(0)
+
+
+class InboxOverlay(QFrame):
+    """Floating overlay panel for inbox / uncategorized tasks.
+
+    Positioned as a free-floating child of the central widget so it overlays
+    the quadrant grid without displacing it.  The containing window is
+    responsible for calling :meth:`reposition` whenever the shell is resized.
+    """
+
+    close_requested = Signal()
+
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.setObjectName("Panel")
+
+        close_btn = QPushButton("✕")
+        close_btn.setObjectName("SectionAddButton")
+        close_btn.setToolTip("Close inbox  [Ctrl+1]")
+        close_btn.clicked.connect(self.close_requested.emit)
+
+        close_row = QHBoxLayout()
+        close_row.addStretch()
+        close_row.addWidget(close_btn)
+
+        self._section = TaskSectionPanel("inbox", "Inbox", "Uncategorized tasks")
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 4, 4, 0)
+        layout.setSpacing(0)
+        layout.addLayout(close_row)
+        layout.addWidget(self._section, 1)
+
+    @property
+    def section_panel(self) -> TaskSectionPanel:
+        """The inner :class:`TaskSectionPanel` for direct signal wiring."""
+        return self._section
+
+    def refresh(self, tasks: list[Task], selected_id: str) -> None:
+        self._section.refresh(tasks, selected_id)
+
+    def focus_list(self) -> None:
+        self._section.focus_list()
+
+
+class TaskEditorDialog(QDialog):
+    """Non-modal floating dialog for editing task details."""
+
+    payload_changed = Signal(object)
+    archive_requested = Signal(bool)
+
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.setWindowTitle("Task Details")
+        self.setMinimumSize(480, 560)
+        self.resize(540, 660)
+
+        self._panel = TaskEditorPanel()
+        self._panel.payload_changed.connect(self.payload_changed.emit)
+        self._panel.archive_requested.connect(self.archive_requested.emit)
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(self._panel)
+
+    def populate(self, task: Task | None, history: list[str]) -> None:
+        self._panel.populate(task, history)
+        if task is not None and not self.isVisible():
+            self.show()
+            self.raise_()
+
+    def current_task_id(self) -> str:
+        return self._panel.current_task_id()
+
+    def focus_title(self) -> None:
+        if not self.isVisible():
+            self.show()
+        self.raise_()
+        self._panel.focus_title()
+
+
+class SearchFilterDialog(QDialog):
+    """Dialog exposing search and filter controls."""
+
+    query_changed = Signal(str)
+    status_changed = Signal(object)
+    sort_changed = Signal(object)
+
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.setWindowTitle("Search & Filter")
+        self.setMinimumWidth(500)
+
+        self._bar = FilterBar()
+        self._bar.query_changed.connect(self.query_changed.emit)
+        self._bar.status_changed.connect(self.status_changed.emit)
+        self._bar.sort_changed.connect(self.sort_changed.emit)
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(self._bar)
+
+    def sync(
+        self,
+        view_state: TaskViewState,
+        counts: dict[TaskStatusFilter, int],
+        visible_count: int,
+    ) -> None:
+        self._bar.sync(view_state, counts, visible_count)
+
+    def focus_search(self) -> None:
+        if not self.isVisible():
+            self.show()
+        self.raise_()
+        self._bar.focus_search()
