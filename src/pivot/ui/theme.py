@@ -29,9 +29,20 @@ LIGHT_THEME_TOKEN_MAP = {
     TEXT: "#1d2433",
     TEXT_COMPLETED: "#61718f",
     TEXT_MUTED: "#6f7c98",
+    GLOW: "rgba(168, 111, 255, 0.10)",
+    GLOW_SOFT: "rgba(168, 111, 255, 0.06)",
+    "rgba(99, 245, 210, 0.08)": "rgba(168, 111, 255, 0.06)",
+    "rgba(99, 245, 210, 0.12)": "rgba(168, 111, 255, 0.10)",
+    "rgba(99, 245, 210, 0.14)": "rgba(168, 111, 255, 0.10)",
     "rgba(99, 245, 210, 0.18)": "rgba(168, 111, 255, 0.14)",
+    "rgba(99, 245, 210, 0.22)": "rgba(168, 111, 255, 0.18)",
+    "rgba(99, 245, 210, 0.25)": "rgba(168, 111, 255, 0.20)",
+    "rgba(99, 245, 210, 0.35)": "rgba(168, 111, 255, 0.30)",
+    "rgba(99, 245, 210, 0.42)": "rgba(168, 111, 255, 0.35)",
     "rgba(99, 245, 210, 0.5)": "rgba(168, 111, 255, 0.4)",
     "rgba(99, 245, 210, 0.55)": "rgba(168, 111, 255, 0.45)",
+    "rgba(99, 245, 210, 0.7)": "rgba(168, 111, 255, 0.60)",
+    ACCENT: ACCENT_ALT,
 }
 
 
@@ -102,9 +113,12 @@ def stylesheet() -> str:
         background: transparent;
         border: none;
         spacing: 8px;
+        padding: 4px 8px;
     }}
     QStatusBar {{
         color: {TEXT_MUTED};
+        font-size: 12px;
+        padding: 2px 8px;
     }}
     QFrame#Panel,
     QListWidget,
@@ -124,29 +138,59 @@ def stylesheet() -> str:
     }}
     QListWidget::item {{
         padding: 10px 8px;
-        margin: 4px 0;
+        margin: 2px 0;
         border-radius: 10px;
+        border: 1px solid transparent;
     }}
     QListWidget::item:hover {{
         background: {GLOW_SOFT};
+        border-color: rgba(99, 245, 210, 0.12);
     }}
     QListWidget::item:selected {{
         background: rgba(99, 245, 210, 0.18);
         border: 1px solid rgba(99, 245, 210, 0.5);
+        color: {TEXT};
+    }}
+    QListWidget#TimelineList {{
+        background: transparent;
+        border: none;
+        border-radius: 0;
+        padding: 0;
+    }}
+    QListWidget#TimelineList::item {{
+        padding: 5px 4px;
+        margin: 1px 0;
+        border-radius: 6px;
+        font-size: 12px;
+        color: {TEXT_MUTED};
+    }}
+    QListWidget#TimelineList::item:hover {{
+        background: {GLOW_SOFT};
+        border-color: transparent;
     }}
     QPushButton {{
         background: {PANEL};
         border: 1px solid {BORDER};
         border-radius: 12px;
         padding: 8px 12px;
+        font-weight: 500;
     }}
     QPushButton:hover {{
         border-color: {ACCENT};
         background: {GLOW};
+        color: {TEXT};
+    }}
+    QPushButton:pressed {{
+        background: rgba(99, 245, 210, 0.22);
     }}
     QPushButton#PrimaryButton {{
         background: rgba(99, 245, 210, 0.14);
         border-color: rgba(99, 245, 210, 0.42);
+        font-weight: 600;
+    }}
+    QPushButton#PrimaryButton:hover {{
+        background: rgba(99, 245, 210, 0.22);
+        border-color: rgba(99, 245, 210, 0.7);
     }}
     QPushButton#SectionAddButton {{
         min-width: 32px;
@@ -168,11 +212,16 @@ def stylesheet() -> str:
         background: rgba(168, 111, 255, 0.18);
         border-color: rgba(168, 111, 255, 0.45);
     }}
+    QTabBar::tab:hover {{
+        border-color: {ACCENT};
+        background: {GLOW_SOFT};
+    }}
     QLabel[class='eyebrow'] {{
         color: {TEXT_MUTED};
         text-transform: uppercase;
         letter-spacing: 0.12em;
         font-size: 11px;
+        font-weight: 600;
     }}
     QLabel[class='sectionTitle'] {{
         font-size: 18px;
@@ -180,12 +229,31 @@ def stylesheet() -> str:
     }}
     QLabel[class='muted'] {{
         color: {TEXT_MUTED};
+        font-size: 12px;
     }}
     QCheckBox {{
         spacing: 8px;
     }}
+    QCheckBox::indicator {{
+        width: 16px;
+        height: 16px;
+        border-radius: 4px;
+        border: 1px solid {BORDER};
+        background: {PANEL_ALT};
+    }}
+    QCheckBox::indicator:checked {{
+        background: rgba(99, 245, 210, 0.25);
+        border-color: rgba(99, 245, 210, 0.7);
+    }}
+    QCheckBox::indicator:hover {{
+        border-color: {ACCENT};
+    }}
     QSplitter::handle {{
         background: transparent;
+        width: 6px;
+    }}
+    QSplitter::handle:hover {{
+        background: rgba(99, 245, 210, 0.08);
     }}
     QLineEdit:focus,
     QTextEdit:focus,
@@ -194,14 +262,81 @@ def stylesheet() -> str:
     QDateTimeEdit:focus,
     QComboBox:focus {{
         border-color: rgba(99, 245, 210, 0.55);
+        outline: none;
+    }}
+    QComboBox::drop-down {{
+        border: none;
+        width: 22px;
+    }}
+    QComboBox QAbstractItemView {{
+        background: {PANEL};
+        border: 1px solid {BORDER};
+        border-radius: 8px;
+        selection-background-color: rgba(99, 245, 210, 0.18);
+        selection-color: {TEXT};
+        padding: 4px;
     }}
     QScrollBar:vertical {{
-        width: 12px;
+        width: 8px;
         background: transparent;
+        margin: 2px;
     }}
     QScrollBar::handle:vertical {{
         background: {BORDER};
-        border-radius: 6px;
+        border-radius: 4px;
         min-height: 24px;
+    }}
+    QScrollBar::handle:vertical:hover {{
+        background: rgba(99, 245, 210, 0.35);
+    }}
+    QScrollBar::add-line:vertical,
+    QScrollBar::sub-line:vertical {{
+        height: 0;
+        background: transparent;
+    }}
+    QScrollBar:horizontal {{
+        height: 8px;
+        background: transparent;
+        margin: 2px;
+    }}
+    QScrollBar::handle:horizontal {{
+        background: {BORDER};
+        border-radius: 4px;
+        min-width: 24px;
+    }}
+    QScrollBar::handle:horizontal:hover {{
+        background: rgba(99, 245, 210, 0.35);
+    }}
+    QScrollBar::add-line:horizontal,
+    QScrollBar::sub-line:horizontal {{
+        width: 0;
+        background: transparent;
+    }}
+    QMenu {{
+        border: 1px solid {BORDER};
+        border-radius: 10px;
+        padding: 4px;
+    }}
+    QMenu::item {{
+        padding: 7px 16px;
+        border-radius: 6px;
+        margin: 1px 2px;
+    }}
+    QMenu::item:selected {{
+        background: rgba(99, 245, 210, 0.14);
+        color: {TEXT};
+    }}
+    QMenu::separator {{
+        height: 1px;
+        background: {BORDER};
+        margin: 4px 8px;
+    }}
+    QToolTip {{
+        background: {PANEL};
+        color: {TEXT};
+        border: 1px solid {BORDER};
+        border-radius: 6px;
+        padding: 6px 10px;
+        font-size: 12px;
     }}
     """
