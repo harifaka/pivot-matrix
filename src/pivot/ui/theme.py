@@ -5,6 +5,8 @@ from __future__ import annotations
 from PySide6.QtGui import QColor, QPalette
 from PySide6.QtWidgets import QApplication
 
+from pivot.constants import APP_THEME_DARK, APP_THEME_LIGHT, DEFAULT_THEME
+
 ACCENT = "#63f5d2"
 ACCENT_ALT = "#a86fff"
 BACKGROUND = "#0b0f17"
@@ -20,7 +22,18 @@ SUCCESS = "#7fe6a2"
 WARNING = "#ffd56b"
 
 
-def apply_theme(app: QApplication) -> None:
+def normalize_theme_name(name: str) -> str:
+    return name if name in {APP_THEME_DARK, APP_THEME_LIGHT} else DEFAULT_THEME
+
+
+def apply_theme(app: QApplication, theme_name: str = DEFAULT_THEME) -> None:
+    if normalize_theme_name(theme_name) == APP_THEME_LIGHT:
+        _apply_light_theme(app)
+        return
+    _apply_dark_theme(app)
+
+
+def _apply_dark_theme(app: QApplication) -> None:
     palette = QPalette()
     palette.setColor(QPalette.ColorRole.Window, QColor(BACKGROUND))
     palette.setColor(QPalette.ColorRole.WindowText, QColor(TEXT))
@@ -35,6 +48,35 @@ def apply_theme(app: QApplication) -> None:
     palette.setColor(QPalette.ColorRole.HighlightedText, QColor(BACKGROUND))
     app.setPalette(palette)
     app.setStyleSheet(stylesheet())
+
+
+def _apply_light_theme(app: QApplication) -> None:
+    palette = QPalette()
+    palette.setColor(QPalette.ColorRole.Window, QColor("#f4f6fb"))
+    palette.setColor(QPalette.ColorRole.WindowText, QColor("#1d2433"))
+    palette.setColor(QPalette.ColorRole.Base, QColor("#ffffff"))
+    palette.setColor(QPalette.ColorRole.AlternateBase, QColor("#f2f5ff"))
+    palette.setColor(QPalette.ColorRole.ToolTipBase, QColor("#ffffff"))
+    palette.setColor(QPalette.ColorRole.ToolTipText, QColor("#1d2433"))
+    palette.setColor(QPalette.ColorRole.Text, QColor("#1d2433"))
+    palette.setColor(QPalette.ColorRole.Button, QColor("#f2f5ff"))
+    palette.setColor(QPalette.ColorRole.ButtonText, QColor("#1d2433"))
+    palette.setColor(QPalette.ColorRole.Highlight, QColor(ACCENT_ALT))
+    palette.setColor(QPalette.ColorRole.HighlightedText, QColor("#ffffff"))
+    app.setPalette(palette)
+    app.setStyleSheet(
+        stylesheet()
+        .replace(BACKGROUND, "#f4f6fb")
+        .replace(PANEL, "#ffffff")
+        .replace(PANEL_ALT, "#f7f9ff")
+        .replace(BORDER, "#d8deef")
+        .replace(TEXT, "#1d2433")
+        .replace(TEXT_COMPLETED, "#61718f")
+        .replace(TEXT_MUTED, "#6f7c98")
+        .replace("rgba(99, 245, 210, 0.18)", "rgba(168, 111, 255, 0.14)")
+        .replace("rgba(99, 245, 210, 0.5)", "rgba(168, 111, 255, 0.4)")
+        .replace("rgba(99, 245, 210, 0.55)", "rgba(168, 111, 255, 0.45)")
+    )
 
 
 def stylesheet() -> str:

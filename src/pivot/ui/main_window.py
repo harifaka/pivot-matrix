@@ -6,7 +6,7 @@ from functools import partial
 from typing import Any
 
 from PySide6.QtCore import Qt, QTimer
-from PySide6.QtGui import QAction, QKeySequence, QShortcut
+from PySide6.QtGui import QAction, QCloseEvent, QKeySequence, QShortcut
 from PySide6.QtWidgets import (
     QDialog,
     QGridLayout,
@@ -40,6 +40,9 @@ class MainWindow(QMainWindow):
         super().__init__()
         self._state = state
         self._user_config = user_config
+        self._tray_enabled = user_config.tray_enabled
+        self._minimize_to_tray = user_config.minimize_to_tray
+        self._allow_close = False
         self.setWindowTitle("Pivot")
         self.setMinimumSize(*WINDOW_MINIMUM_SIZE)
         self.resize(user_config.window.width, user_config.window.height)
@@ -65,6 +68,14 @@ class MainWindow(QMainWindow):
         self._setup_shortcuts()
         self._palette.set_commands(self._palette_commands())
         self.refresh()
+
+    def configure_tray_behavior(self, *, enabled: bool, minimize_to_tray: bool) -> None:
+        self._tray_enabled = enabled
+        self._minimize_to_tray = minimize_to_tray
+
+    def request_exit(self) -> None:
+        self._allow_close = True
+        self.close()
 
     def _build_toolbar(self) -> None:
         toolbar = QToolBar("Commands", self)
@@ -345,3 +356,11 @@ class MainWindow(QMainWindow):
     def _update_window_title(self, dirty: bool) -> None:
         marker = " •" if dirty else ""
         self.setWindowTitle(f"Pivot{marker}")
+
+    def closeEvent(self, event: QCloseEvent) -> None:  # noqa: N802
+        if self._tray_enabled and self._minimize_to_tray and not self._allow_close:
+            self.hide()
+            event.ignore()
+            self._status.showMessage("Pivot is still running in the system tray.")
+            return
+        super().closeEvent(event)

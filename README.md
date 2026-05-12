@@ -1,158 +1,134 @@
-# Pivot
+# Pivot Matrix
 
-Pivot is an offline-first Eisenhower Matrix desktop app for Windows built with Python and PySide6.
-It is designed for low-friction planning with a dark ambient interface, keyboard-first controls, JSON persistence, and zero cloud dependencies.
+Pivot is an offline-first Eisenhower Matrix desktop app built with Python + PySide6 and packaged for Windows distribution.
 
-## Why this foundation exists
+## Highlights
 
-This repository now contains a production-oriented foundation for a desktop application with:
+- system tray integration with close-to-tray behavior and quick actions
+- robust autosave and crash-safe persistence
+- atomic JSON writes with backup snapshots and recovery from corruption
+- portable mode with app-relative storage support
+- persisted settings (window size, tray behavior, startup behavior, theme)
+- dark/light theme support
+- large task list performance improvements and bounded history memory growth
+- production build pipeline with Nuitka onefile output and Windows release packaging
 
-- a strict separation between UI, application state, domain models, and persistence
-- typed dataclass-based task models with UUID identifiers and timestamp history
-- JSON persistence with schema versioning and atomic writes
-- debounced autosave architecture
-- markdown editing and preview support
-- dark theme and tray icon scaffolding
-- linting, formatting, type-checking, tests, and Nuitka build scripts
+## Screenshots
+
+> Replace these placeholders with real screenshots.
+
+### Main board
+
+`docs/screenshots/main-board.png` (placeholder)
+
+### Task editor
+
+`docs/screenshots/task-editor.png` (placeholder)
+
+### Tray menu
+
+`docs/screenshots/tray-menu.png` (placeholder)
 
 ## Architecture
 
 ```text
-pivot-matrix/
-├── pyproject.toml
-├── requirements-build.txt
-├── requirements-dev.txt
-├── scripts/
-│   ├── build_nuitka.py
-│   └── build_windows.ps1
-├── src/pivot/
-│   ├── __main__.py
-│   ├── bootstrap.py
-│   ├── config.py
-│   ├── constants.py
-│   ├── logging_config.py
-│   ├── application/
-│   │   ├── autosave.py
-│   │   └── state.py
-│   ├── domain/
-│   │   └── models.py
-│   ├── persistence/
-│   │   └── json_store.py
-│   └── ui/
-│       ├── main_window.py
-│       ├── theme.py
-│       └── tray.py
-├── tests/
-└── .vscode/
+src/pivot/
+├── application/   # state orchestration + autosave
+├── domain/        # typed task/document models
+├── persistence/   # JSON load/save, backups, recovery
+├── ui/            # Qt window, components, tray, themes
+├── bootstrap.py   # app lifecycle wiring
+└── config.py      # paths, modes, settings persistence
 ```
 
-### Layer responsibilities
+## Storage model
 
-- **Domain**: pure task entities, timestamps, history, serialization boundaries
-- **Application state**: orchestration, selection, matrix section projections, save lifecycle
-- **Persistence**: file IO, atomic JSON reads/writes, schema compatibility checks
-- **UI**: Qt widgets, keyboard shortcuts, rendering, preview, tray integration
+Standard mode:
 
-## Task model
+- `%APPDATA%\Pivot\data\tasks.json`
+- `%APPDATA%\Pivot\config\config.json`
+- `%APPDATA%\Pivot\logs\pivot.log`
+- `%APPDATA%\Pivot\backups\...`
 
-Each task supports:
+Portable mode:
 
-- UUID-based identity
-- title plus markdown body
-- created, updated, completed, and saved timestamps
-- optional due date
-- inbox routing or quadrant placement
-- archived and completed states
-- append-only history snapshots for every state transition
+- `./pivot-data/data/tasks.json`
+- `./pivot-data/config/config.json`
+- `./pivot-data/logs/pivot.log`
+- `./pivot-data/backups/...`
 
-## Getting started
+Portable mode can be enabled by:
 
-### Runtime requirements
+- setting `PIVOT_PORTABLE=1`, or
+- placing a `pivot.portable` marker file next to the executable.
 
-- Python 3.13
-- Windows for the primary desktop target
+## Development
 
-### Create a virtual environment
+### Requirements
+
+- Python 3.13 target runtime (CI/development may also run on recent Python versions)
+
+### Setup
 
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
-python -m pip install -e .
+python -m pip install -r requirements-dev.txt
 ```
 
-### Run the app
+### Run locally
 
 ```powershell
 python -m pivot
 ```
 
-## Development workflow
-
-### Install dev tooling
+### Validate
 
 ```powershell
-python -m pip install -r requirements-dev.txt
-```
-
-### Lint, format, type-check, and test
-
-```powershell
-python -m ruff format .
 python -m ruff check .
 python -m mypy src
 python -m pytest
 ```
 
-## Build strategy
+## Production build and release
 
-The repository keeps a simple split dependency strategy:
-
-- runtime dependencies live in `pyproject.toml`
-- developer tooling installs through `requirements-dev.txt`
-- packaging tooling installs through `requirements-build.txt`
-
-## Nuitka build instructions
-
-Install build dependencies and create a standalone Windows executable:
+Install build tooling:
 
 ```powershell
 python -m pip install -r requirements-build.txt
-python scripts/build_nuitka.py
 ```
 
-Or use the helper script:
+Build onefile executable:
+
+```powershell
+python scripts/build_nuitka.py --onefile
+```
+
+Build and package Windows releases (standard + portable zip):
+
+```powershell
+python scripts/release_windows.py
+```
+
+PowerShell helper:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\build_windows.ps1
 ```
 
-## VS Code recommendations
+Optional icon integration:
 
-The workspace includes recommended settings for:
+```powershell
+python scripts/release_windows.py --icon .\assets\pivot.ico
+```
 
-- Ruff formatting and import organization on save
-- pytest discovery
-- Python and Pylance extensions
+## Documentation map
 
-## Persistence and configuration
+- contribution guide: `CONTRIBUTING.md`
+- roadmap: `ROADMAP.md`
+- changelog: `CHANGELOG.md`
 
-Pivot stores all user data locally:
+## License
 
-- `%APPDATA%\Pivot\data\tasks.json` for the task document
-- `%APPDATA%\Pivot\config\config.json` for user configuration
-- `%APPDATA%\Pivot\logs\pivot.log` for rotating logs
-
-On non-Windows systems, it falls back to `~/.pivot/`.
-
-## License recommendation
-
-MIT is already included in this repository and is a strong fit for this project foundation because it keeps distribution and future packaging flexible.
-
-## Next recommended milestones
-
-- drag-and-drop task movement between sections
-- richer markdown attachments and backlinks
-- recurring task scheduling
-- saved filters and command palette actions
-- import and export flows
+MIT

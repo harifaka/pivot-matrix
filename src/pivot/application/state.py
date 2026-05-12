@@ -83,6 +83,9 @@ class AppState(QObject):
         self._selected_task_id = ""
         self._dirty = False
         self._view = TaskViewState()
+        self._document_revision = 0
+        self._visible_cache_key: tuple[TaskViewState, int] | None = None
+        self._visible_cache_value: list[Task] = []
 
     @property
     def selected_task_id(self) -> str:
@@ -103,6 +106,7 @@ class AppState(QObject):
     def load(self) -> None:
         self._document = self._store.load()
         self._dirty = False
+        self._invalidate_cache()
         self.save_state_changed.emit(False)
         self._sync_selection()
         self.document_changed.emit()
@@ -110,7 +114,12 @@ class AppState(QObject):
         self.status_changed.emit("Ready")
 
     def save_now(self) -> None:
-        self._store.save(self._document)
+        try:
+            self._store.save(self._document)
+        except Exception as error:
+            logger.exception("Failed to save task document")
+            self.status_changed.emit(f"Save failed: {type(error).__name__}")
+            raise
         self._dirty = False
         self.save_state_changed.emit(False)
         self.status_changed.emit("Saved")
@@ -234,6 +243,7 @@ class AppState(QObject):
         if normalized == self._view.query:
             return
         self._view = TaskViewState(query=normalized, status=self._view.status, sort=self._view.sort)
+        self._invalidate_view_cache()
         self._sync_selection()
         self.filters_changed.emit()
         self.document_changed.emit()
@@ -242,6 +252,7 @@ class AppState(QObject):
         if status == self._view.status:
             return
         self._view = TaskViewState(query=self._view.query, status=status, sort=self._view.sort)
+        self._invalidate_view_cache()
         self._sync_selection()
         self.filters_changed.emit()
         self.document_changed.emit()
@@ -250,6 +261,7 @@ class AppState(QObject):
         if sort == self._view.sort:
             return
         self._view = TaskViewState(query=self._view.query, status=self._view.status, sort=sort)
+        self._invalidate_view_cache()
         self._sync_selection()
         self.filters_changed.emit()
         self.document_changed.emit()
@@ -258,13 +270,20 @@ class AppState(QObject):
         if self._view == TaskViewState():
             return
         self._view = TaskViewState()
+        self._invalidate_view_cache()
         self._sync_selection()
         self.filters_changed.emit()
         self.document_changed.emit()
 
     def visible_tasks(self) -> list[Task]:
+        cache_key = (self._view, self._document_revision)
+        if self._visible_cache_key == cache_key:
+            return list(self._visible_cache_value)
         tasks = [task for task in self._document.tasks if self._matches_view(task)]
-        return sorted(tasks, key=self._sort_key)
+        sorted_tasks = sorted(tasks, key=self._sort_key)
+        self._visible_cache_key = cache_key
+        self._visible_cache_value = sorted_tasks
+        return list(sorted_tasks)
 
     def board_sections(self) -> SectionTasks:
         sections: SectionTasks = defaultdict(list)
@@ -340,7 +359,17 @@ class AppState(QObject):
 
     def _mark_dirty(self, message: str) -> None:
         self._dirty = True
+        self._invalidate_cache()
         self.document_changed.emit()
         self.save_state_changed.emit(True)
         self.status_changed.emit(message)
         logger.info(message)
+
+    def _invalidate_cache(self) -> None:
+        self._document_revision += 1
+        self._visible_cache_key = None
+        self._visible_cache_value = []
+
+    def _invalidate_view_cache(self) -> None:
+        self._visible_cache_key = None
+        self._visible_cache_value = []

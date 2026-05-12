@@ -8,7 +8,7 @@ from enum import StrEnum
 from typing import Any
 from uuid import uuid4
 
-from pivot.constants import SCHEMA_VERSION
+from pivot.constants import MAX_TASK_HISTORY_ENTRIES, SCHEMA_VERSION
 
 
 def utc_now() -> datetime:
@@ -169,6 +169,9 @@ class Task:
         self.history.append(
             HistoryEntry(timestamp=utc_now(), action=action, snapshot=self.snapshot())
         )
+        overflow = len(self.history) - MAX_TASK_HISTORY_ENTRIES
+        if overflow > 0:
+            del self.history[:overflow]
 
     def touch(self, action: str = "updated") -> None:
         self.updated_at = utc_now()
