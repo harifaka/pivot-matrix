@@ -216,3 +216,10 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+# Pivot local app data
+.pivot/
+
+# VS Code local workspace cache
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
