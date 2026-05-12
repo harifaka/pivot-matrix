@@ -64,8 +64,9 @@ def test_app_state_sort_mode_and_board_section_moves(tmp_path: Path) -> None:
     assert [task.id for task in do_section] == [sooner_due.id, later_due.id]
 
     state.move_task_to_section(sooner_due.id, "delegate")
-    assert state.get_task(sooner_due.id) is not None
-    assert state.get_task(sooner_due.id).section_key == "delegate"  # type: ignore[union-attr]
+    moved = state.get_task(sooner_due.id)
+    assert moved is not None
+    assert moved.section_key == "delegate"
     assert sooner_due.id in [task.id for task in state.board_sections()["delegate"]]
 
 
@@ -74,11 +75,13 @@ def test_app_state_retitles_and_reselects_when_filtered_out(tmp_path: Path) -> N
     second = Task.create(title="Second")
 
     state = build_state(tmp_path, [first, second])
+    state.select_task(first.id)
     assert state.selected_task_id == first.id
 
     state.rename_task(first.id, "Inbox zero")
-    assert state.get_task(first.id) is not None
-    assert state.get_task(first.id).title == "Inbox zero"  # type: ignore[union-attr]
+    renamed = state.get_task(first.id)
+    assert renamed is not None
+    assert renamed.title == "Inbox zero"
 
     state.archive_task(first.id, True)
     assert state.selected_task_id == second.id

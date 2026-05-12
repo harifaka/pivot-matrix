@@ -7,8 +7,8 @@ from typing import Any
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QAction, QKeySequence, QShortcut
 from PySide6.QtWidgets import (
+    QDialog,
     QGridLayout,
-    QHBoxLayout,
     QMainWindow,
     QPushButton,
     QSplitter,
@@ -251,7 +251,7 @@ class MainWindow(QMainWindow):
 
     def _open_command_palette(self) -> None:
         self._palette.set_commands(self._palette_commands())
-        if self._palette.open_with_focus() != int(self._palette.DialogCode.Accepted):
+        if self._palette.open_with_focus() != int(QDialog.DialogCode.Accepted):
             return
         command_id = self._palette.selected_command()
         if command_id:
@@ -259,21 +259,61 @@ class MainWindow(QMainWindow):
 
     def _palette_commands(self) -> list[PaletteCommand]:
         return [
-            PaletteCommand("new:inbox", "New inbox task", "Capture a task into the inbox", "Ctrl+N"),
-            PaletteCommand("new:do", "New do task", "Create directly in the Do quadrant", "Ctrl+Shift+2"),
+            PaletteCommand(
+                "new:inbox", "New inbox task", "Capture a task into the inbox", "Ctrl+N"
+            ),
+            PaletteCommand(
+                "new:do", "New do task", "Create directly in the Do quadrant", "Ctrl+Shift+2"
+            ),
             PaletteCommand("new:schedule", "New schedule task", "Create directly in Schedule"),
             PaletteCommand("new:delegate", "New delegate task", "Create directly in Delegate"),
             PaletteCommand("new:eliminate", "New eliminate task", "Create directly in Eliminate"),
-            PaletteCommand("focus:search", "Focus search", "Jump to search/filter controls", "Ctrl+F"),
+            PaletteCommand(
+                "focus:search", "Focus search", "Jump to search/filter controls", "Ctrl+F"
+            ),
             PaletteCommand("filters:clear", "Clear filters", "Reset search, status, and sort"),
-            PaletteCommand("state:complete", "Toggle completed", "Flip the selected task state", "Ctrl+Enter"),
-            PaletteCommand("state:archive", "Archive selected task", "Move selected task into archive", "Ctrl+Backspace"),
-            PaletteCommand("state:restore", "Restore selected task", "Restore archived task", "Ctrl+Shift+Backspace"),
-            PaletteCommand("move:inbox", "Move selected to inbox", "Keyboard move target", "Ctrl+Shift+1"),
-            PaletteCommand("move:do", "Move selected to Do", "Keyboard move target", "Ctrl+Shift+2"),
-            PaletteCommand("move:schedule", "Move selected to Schedule", "Keyboard move target", "Ctrl+Shift+3"),
-            PaletteCommand("move:delegate", "Move selected to Delegate", "Keyboard move target", "Ctrl+Shift+4"),
-            PaletteCommand("move:eliminate", "Move selected to Eliminate", "Keyboard move target", "Ctrl+Shift+5"),
+            PaletteCommand(
+                "state:complete",
+                "Toggle completed",
+                "Flip the selected task state",
+                "Ctrl+Enter",
+            ),
+            PaletteCommand(
+                "state:archive",
+                "Archive selected task",
+                "Move selected task into archive",
+                "Ctrl+Backspace",
+            ),
+            PaletteCommand(
+                "state:restore",
+                "Restore selected task",
+                "Restore archived task",
+                "Ctrl+Shift+Backspace",
+            ),
+            PaletteCommand(
+                "move:inbox", "Move selected to inbox", "Keyboard move target", "Ctrl+Shift+1"
+            ),
+            PaletteCommand(
+                "move:do", "Move selected to Do", "Keyboard move target", "Ctrl+Shift+2"
+            ),
+            PaletteCommand(
+                "move:schedule",
+                "Move selected to Schedule",
+                "Keyboard move target",
+                "Ctrl+Shift+3",
+            ),
+            PaletteCommand(
+                "move:delegate",
+                "Move selected to Delegate",
+                "Keyboard move target",
+                "Ctrl+Shift+4",
+            ),
+            PaletteCommand(
+                "move:eliminate",
+                "Move selected to Eliminate",
+                "Keyboard move target",
+                "Ctrl+Shift+5",
+            ),
         ]
 
     def _execute_palette_command(self, command_id: str) -> None:

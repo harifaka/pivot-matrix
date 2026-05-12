@@ -54,7 +54,14 @@ def stylesheet() -> str:
     QStatusBar {{
         color: {TEXT_MUTED};
     }}
-    QFrame#Panel, QListWidget, QTextEdit, QTextBrowser, QLineEdit, QDateTimeEdit, QComboBox, QDialog {{
+    QFrame#Panel,
+    QListWidget,
+    QTextEdit,
+    QTextBrowser,
+    QLineEdit,
+    QDateTimeEdit,
+    QComboBox,
+    QDialog {{
         background: {PANEL};
         border: 1px solid {BORDER};
         border-radius: 14px;
@@ -128,7 +135,12 @@ def stylesheet() -> str:
     QSplitter::handle {{
         background: transparent;
     }}
-    QLineEdit:focus, QTextEdit:focus, QTextBrowser:focus, QListWidget:focus, QDateTimeEdit:focus, QComboBox:focus {{
+    QLineEdit:focus,
+    QTextEdit:focus,
+    QTextBrowser:focus,
+    QListWidget:focus,
+    QDateTimeEdit:focus,
+    QComboBox:focus {{
         border-color: rgba(99, 245, 210, 0.55);
     }}
     QScrollBar:vertical {{

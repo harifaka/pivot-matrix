@@ -4,13 +4,15 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from typing import Any, override
 
-from PySide6.QtCore import QDateTime, QMimeData, QPoint, QSignalBlocker, Qt, QTimer, Signal
-from PySide6.QtGui import QColor, QDrag, QFont
+from PySide6.QtCore import QDateTime, QMimeData, QSignalBlocker, Qt, QTimer, Signal
+from PySide6.QtGui import QColor, QDrag, QDragEnterEvent, QDragMoveEvent, QDropEvent, QFont
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QCheckBox,
     QComboBox,
+    QDateTimeEdit,
     QDialog,
     QDialogButtonBox,
     QFrame,
@@ -28,7 +30,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from pivot.application.state import AppState, TaskSortMode, TaskStatusFilter, TaskViewState
+from pivot.application.state import TaskSortMode, TaskStatusFilter, TaskViewState
 from pivot.constants import DATE_DISPLAY_FORMAT, RECENT_HISTORY_PREVIEW_COUNT
 from pivot.domain.models import Quadrant, Task
 
@@ -107,7 +109,8 @@ class TaskListWidget(QListWidget):
     def focus_list(self) -> None:
         self.setFocus(Qt.FocusReason.ShortcutFocusReason)
 
-    def startDrag(self, supported_actions: Qt.DropActions) -> None:
+    @override
+    def startDrag(self, supported_actions: Any) -> None:
         del supported_actions
         item = self.currentItem()
         if item is None:
@@ -121,26 +124,29 @@ class TaskListWidget(QListWidget):
         drag.setMimeData(mime_data)
         drag.exec(Qt.DropAction.MoveAction)
 
-    def dragEnterEvent(self, event: object) -> None:
-        if event.mimeData().hasFormat(TASK_MIME_TYPE):  # type: ignore[union-attr]
-            event.acceptProposedAction()  # type: ignore[union-attr]
+    @override
+    def dragEnterEvent(self, event: QDragEnterEvent) -> None:
+        if event.mimeData().hasFormat(TASK_MIME_TYPE):
+            event.acceptProposedAction()
             return
-        super().dragEnterEvent(event)  # type: ignore[arg-type]
+        super().dragEnterEvent(event)
 
-    def dragMoveEvent(self, event: object) -> None:
-        if event.mimeData().hasFormat(TASK_MIME_TYPE):  # type: ignore[union-attr]
-            event.acceptProposedAction()  # type: ignore[union-attr]
+    @override
+    def dragMoveEvent(self, event: QDragMoveEvent) -> None:
+        if event.mimeData().hasFormat(TASK_MIME_TYPE):
+            event.acceptProposedAction()
             return
-        super().dragMoveEvent(event)  # type: ignore[arg-type]
+        super().dragMoveEvent(event)
 
-    def dropEvent(self, event: object) -> None:
-        if not event.mimeData().hasFormat(TASK_MIME_TYPE):  # type: ignore[union-attr]
-            super().dropEvent(event)  # type: ignore[arg-type]
+    @override
+    def dropEvent(self, event: QDropEvent) -> None:
+        if not event.mimeData().hasFormat(TASK_MIME_TYPE):
+            super().dropEvent(event)
             return
-        payload = bytes(event.mimeData().data(TASK_MIME_TYPE)).decode("utf-8")  # type: ignore[union-attr]
+        payload = bytes(event.mimeData().data(TASK_MIME_TYPE).data()).decode("utf-8")
         if payload:
             self.task_dropped.emit(payload, self._section_key)
-        event.acceptProposedAction()  # type: ignore[union-attr]
+        event.acceptProposedAction()
 
     def _emit_selection(
         self,
@@ -249,7 +255,9 @@ class FilterBar(QFrame):
         self._sort = QComboBox()
         for sort in TaskSortMode:
             self._sort.addItem(sort.label, sort)
-        self._sort.currentIndexChanged.connect(lambda: self.sort_changed.emit(self._sort.currentData()))
+        self._sort.currentIndexChanged.connect(
+            lambda: self.sort_changed.emit(self._sort.currentData())
+        )
 
         self._summary = QLabel("0 visible")
         self._summary.setProperty("class", "muted")
@@ -265,7 +273,12 @@ class FilterBar(QFrame):
         layout.addWidget(self._sort, 2, 3)
         layout.addWidget(self._summary, 3, 0, 1, 4)
 
-    def sync(self, view_state: TaskViewState, counts: dict[TaskStatusFilter, int], visible_count: int) -> None:
+    def sync(
+        self,
+        view_state: TaskViewState,
+        counts: dict[TaskStatusFilter, int],
+        visible_count: int,
+    ) -> None:
         query_blocker = QSignalBlocker(self._query)
         status_blocker = QSignalBlocker(self._status)
         sort_blocker = QSignalBlocker(self._sort)
@@ -275,7 +288,8 @@ class FilterBar(QFrame):
         total = counts[TaskStatusFilter.ALL]
         self._summary.setText(
             f"{visible_count} visible · {counts[TaskStatusFilter.ACTIVE]} active · "
-            f"{counts[TaskStatusFilter.COMPLETED]} completed · {counts[TaskStatusFilter.ARCHIVED]} archived · "
+            f"{counts[TaskStatusFilter.COMPLETED]} completed · "
+            f"{counts[TaskStatusFilter.ARCHIVED]} archived · "
             f"{total} total"
         )
         del query_blocker
@@ -484,7 +498,9 @@ class CommandPaletteDialog(QDialog):
         self._list = QListWidget()
         self._list.itemDoubleClicked.connect(lambda _: self.accept())
 
-        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Cancel | QDialogButtonBox.StandardButton.Ok)
+        buttons = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Cancel | QDialogButtonBox.StandardButton.Ok
+        )
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
 

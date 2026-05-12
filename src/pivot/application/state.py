@@ -310,9 +310,17 @@ class AppState(QObject):
             due = task.due_at or max_due
             return (due, task.display_title.casefold(), -task.updated_at.timestamp())
         if self._view.sort is TaskSortMode.CREATED:
-            return (-task.created_at.timestamp(), -task.updated_at.timestamp(), task.display_title.casefold())
+            return (
+                -task.created_at.timestamp(),
+                -task.updated_at.timestamp(),
+                task.display_title.casefold(),
+            )
         if self._view.sort is TaskSortMode.TITLE:
-            return (task.display_title.casefold(), task.due_at or max_due, -task.updated_at.timestamp())
+            return (
+                task.display_title.casefold(),
+                task.due_at or max_due,
+                -task.updated_at.timestamp(),
+            )
         return (-task.updated_at.timestamp(), task.due_at or max_due, task.display_title.casefold())
 
     def _sync_selection(self, preferred_task_id: str = "") -> None:
