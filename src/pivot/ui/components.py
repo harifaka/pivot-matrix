@@ -38,6 +38,7 @@ from pivot.constants import (
     TOOLTIP_DATE_FORMAT,
 )
 from pivot.domain.models import Quadrant, Task
+from pivot.markdown_sanitize import sanitize_markdown
 from pivot.ui.theme import TEXT, TEXT_COMPLETED
 
 TASK_MIME_TYPE = "application/x-pivot-task-id"
@@ -415,7 +416,7 @@ class TaskEditorPanel(QFrame):
 
         self._title_edit.setText(task.title)
         self._body_edit.setMarkdown(task.content_markdown)
-        self._preview.setMarkdown(task.content_markdown)
+        self._preview.setMarkdown(sanitize_markdown(task.content_markdown))
         self._inbox_check.setChecked(task.inbox)
         self._completed_check.setChecked(task.is_completed)
         self._due_check.setChecked(task.due_at is not None)
@@ -456,7 +457,7 @@ class TaskEditorPanel(QFrame):
         self._emit_payload()
 
     def _render_preview(self) -> None:
-        self._preview.setMarkdown(self._body_edit.toMarkdown())
+        self._preview.setMarkdown(sanitize_markdown(self._body_edit.toMarkdown()))
 
     def _emit_payload(self) -> None:
         if self._loading or not self._current_task_id:
